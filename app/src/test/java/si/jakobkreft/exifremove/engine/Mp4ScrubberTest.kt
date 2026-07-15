@@ -190,6 +190,53 @@ class Mp4ScrubberTest {
     }
 
     @Test
+    fun `remove all frees the entire meta box leaving no keys or ilst`() {
+        val (_, result) = scrubbed(removeAll)
+        assertFalse(result.containsSequence("keys".toByteArray()))
+        assertFalse(result.containsSequence("ilst".toByteArray()))
+        assertFalse(result.containsSequence("mdta".toByteArray()))
+    }
+
+    @Test
+    fun `partial keep preserves the exact meta structure for strict parsers`() {
+        val template = Template(
+            id = "t", name = "t",
+            gps = RuleAction.KEEP,
+            otherExif = RuleAction.REMOVE,
+            cameraInfo = RuleAction.REMOVE,
+        )
+        val (original, result) = scrubbed(template)
+        // Structure intact: keys/ilst/data headers all still present
+        assertTrue(result.containsSequence("keys".toByteArray()))
+        assertTrue(result.containsSequence("ilst".toByteArray()))
+        assertTrue(result.containsSequence("data".toByteArray()))
+        assertTrue(result.containsSequence(gpsString.toByteArray()))
+        // Removed values are blanked, not renamed: entry sizes unchanged
+        assertFalse(result.containsSequence("Pixel 10 Pro".toByteArray()))
+        assertEquals(original.size, result.size)
+        // The blanked UTF-8 value is spaces, keeping the string type valid
+        val ilstIndex = result.indexOfSequence("ilst".toByteArray())
+        assertTrue(String(result, ilstIndex, result.size - ilstIndex, Charsets.ISO_8859_1)
+            .contains("            ")) // 12 spaces = "Pixel 10 Pro".length
+    }
+
+    @Test
+    fun `metadata reader lists entries before and nothing sensitive after`() {
+        val file = tmp.newFile().apply { writeBytes(buildMp4()) }
+        val before = Mp4MetadataReader.read(file)
+        assertTrue(before.any { it.category == MetaCategory.LOCATION && it.value == gpsString })
+        assertTrue(before.any { it.value == "Pixel 10 Pro" })
+        assertTrue(before.any { it.value == "Google" && it.name == "Make" })
+        assertTrue(before.any { it.category == MetaCategory.DATE })
+
+        Mp4Scrubber.scrub(file, removeAll)
+        val after = Mp4MetadataReader.read(file)
+        assertTrue(after.none { it.category == MetaCategory.LOCATION })
+        assertTrue(after.none { it.category == MetaCategory.CAMERA })
+        assertTrue(after.none { it.category == MetaCategory.DATE })
+    }
+
+    @Test
     fun `randomize dates writes a nonzero timestamp everywhere`() {
         val template = Template(id = "t", name = "t", dateTime = RuleAction.RANDOMIZE)
         val (_, result) = scrubbed(template)

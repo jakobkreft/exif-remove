@@ -25,6 +25,10 @@ copies onward. No network access, no tracking, free software.
 - Cleans MP4, MOV and 3GP videos in place: device info, location, creation
   timestamps and other metadata boxes are wiped without changing a single
   stream byte — no re-encoding, works instantly even on large videos
+- **Metadata viewer**: inspect any photo or video, grouped by category,
+  and preview exactly what a template would remove, keep or randomize —
+  powered by the same engine that does the real cleaning
+- First-launch tutorial (replayable from the menu)
 - Optional random output file names (file names can leak information too)
 - Save cleaned copies to the gallery, or skip the picker entirely and
   clean with your default template in one tap

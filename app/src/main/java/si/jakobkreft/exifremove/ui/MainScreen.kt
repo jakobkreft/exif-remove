@@ -21,6 +21,8 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Policy
+import androidx.compose.material.icons.outlined.School
 import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -67,6 +69,8 @@ fun MainScreen(
     onRestoreDefaults: () -> Unit,
     onSettings: () -> Unit,
     onAbout: () -> Unit,
+    onInspect: () -> Unit,
+    onTutorial: () -> Unit,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -101,6 +105,14 @@ fun MainScreen(
                                 overflowOpen = false
                                 onRestoreDefaults()
                                 scope.launch { snackbarHostState.showSnackbar(restoredMessage) }
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.tutorial)) },
+                            leadingIcon = { Icon(Icons.Outlined.School, null) },
+                            onClick = {
+                                overflowOpen = false
+                                onTutorial()
                             },
                         )
                         DropdownMenuItem(
@@ -162,6 +174,40 @@ fun MainScreen(
                                 stringResource(R.string.clean_images_desc),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                        }
+                    }
+                }
+            }
+            item {
+                Card(
+                    onClick = onInspect,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    ),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(20.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        Icon(
+                            Icons.Outlined.Policy,
+                            contentDescription = null,
+                            modifier = Modifier.size(32.dp),
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                        )
+                        Column {
+                            Text(
+                                stringResource(R.string.view_metadata),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            )
+                            Text(
+                                stringResource(R.string.view_metadata_desc),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
                             )
                         }
                     }

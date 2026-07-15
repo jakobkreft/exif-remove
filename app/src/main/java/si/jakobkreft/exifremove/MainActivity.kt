@@ -21,7 +21,9 @@ import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.launch
 import si.jakobkreft.exifremove.data.AppRepository
 import si.jakobkreft.exifremove.ui.AboutScreen
+import si.jakobkreft.exifremove.ui.InspectorScreen
 import si.jakobkreft.exifremove.ui.MainScreen
+import si.jakobkreft.exifremove.ui.OnboardingScreen
 import si.jakobkreft.exifremove.ui.SettingsScreen
 import si.jakobkreft.exifremove.ui.TemplateEditorScreen
 import si.jakobkreft.exifremove.ui.theme.ExifRemoveTheme
@@ -42,6 +44,7 @@ private const val SCREEN_HOME = "home"
 private const val SCREEN_EDITOR = "editor"
 private const val SCREEN_SETTINGS = "settings"
 private const val SCREEN_ABOUT = "about"
+private const val SCREEN_INSPECTOR = "inspector"
 
 @Composable
 private fun AppNavigation() {
@@ -66,9 +69,20 @@ private fun AppNavigation() {
         }
     }
 
+    var replayTutorial by rememberSaveable { mutableStateOf(false) }
+
     BackHandler(enabled = screen != SCREEN_HOME) { screen = SCREEN_HOME }
 
     val appState = state ?: return
+
+    if (!appState.onboardingDone || replayTutorial) {
+        OnboardingScreen(onDone = {
+            replayTutorial = false
+            scope.launch { repository.setOnboardingDone() }
+        })
+        return
+    }
+
     when (screen) {
         SCREEN_HOME -> MainScreen(
             state = appState,
@@ -92,6 +106,8 @@ private fun AppNavigation() {
             onRestoreDefaults = { scope.launch { repository.restoreBuiltIns() } },
             onSettings = { screen = SCREEN_SETTINGS },
             onAbout = { screen = SCREEN_ABOUT },
+            onInspect = { screen = SCREEN_INSPECTOR },
+            onTutorial = { replayTutorial = true },
         )
         SCREEN_EDITOR -> TemplateEditorScreen(
             existing = appState.templates.firstOrNull { it.id == editingTemplateId },
@@ -111,5 +127,9 @@ private fun AppNavigation() {
             onBack = { screen = SCREEN_HOME },
         )
         SCREEN_ABOUT -> AboutScreen(onBack = { screen = SCREEN_HOME })
+        SCREEN_INSPECTOR -> InspectorScreen(
+            state = appState,
+            onBack = { screen = SCREEN_HOME },
+        )
     }
 }

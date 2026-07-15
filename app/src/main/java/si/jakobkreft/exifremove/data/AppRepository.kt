@@ -21,6 +21,7 @@ data class AppState(
     val skipDialog: Boolean,
     val randomFileNames: Boolean,
     val convertUnsupported: Boolean,
+    val onboardingDone: Boolean,
 ) {
     val defaultTemplate: Template
         get() = templates.firstOrNull { it.id == defaultTemplateId }
@@ -39,6 +40,7 @@ class AppRepository(private val context: Context) {
         val SKIP_DIALOG = booleanPreferencesKey("skip_dialog")
         val RANDOM_FILE_NAMES = booleanPreferencesKey("random_file_names")
         val CONVERT_UNSUPPORTED = booleanPreferencesKey("convert_unsupported")
+        val ONBOARDING_DONE = booleanPreferencesKey("onboarding_done")
     }
 
     val state: Flow<AppState> = context.dataStore.data.map { prefs -> prefs.toState() }
@@ -59,6 +61,7 @@ class AppRepository(private val context: Context) {
             skipDialog = this[Keys.SKIP_DIALOG] ?: false,
             randomFileNames = this[Keys.RANDOM_FILE_NAMES] ?: true,
             convertUnsupported = this[Keys.CONVERT_UNSUPPORTED] ?: true,
+            onboardingDone = this[Keys.ONBOARDING_DONE] ?: false,
         )
     }
 
@@ -99,6 +102,10 @@ class AppRepository(private val context: Context) {
 
     suspend fun setConvertUnsupported(value: Boolean) {
         context.dataStore.edit { it[Keys.CONVERT_UNSUPPORTED] = value }
+    }
+
+    suspend fun setOnboardingDone() {
+        context.dataStore.edit { it[Keys.ONBOARDING_DONE] = true }
     }
 
     companion object {

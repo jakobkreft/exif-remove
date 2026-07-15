@@ -158,7 +158,7 @@ object ExifProcessor {
 
     // ------------------------------------------------------ metadata rewrite
 
-    private val DATE_TAGS = setOf(
+    internal val DATE_TAGS = setOf(
         ExifInterface.TAG_DATETIME,
         ExifInterface.TAG_DATETIME_ORIGINAL,
         ExifInterface.TAG_DATETIME_DIGITIZED,
@@ -170,7 +170,7 @@ object ExifProcessor {
         ExifInterface.TAG_OFFSET_TIME_DIGITIZED,
     )
 
-    private val CAMERA_TAGS = setOf(
+    internal val CAMERA_TAGS = setOf(
         ExifInterface.TAG_MAKE,
         ExifInterface.TAG_MODEL,
         ExifInterface.TAG_SOFTWARE,
@@ -213,7 +213,7 @@ object ExifProcessor {
     )
 
     /** All TAG_* constants of ExifInterface, discovered once via reflection. */
-    private val ALL_TAGS: List<String> by lazy {
+    internal val ALL_TAGS: List<String> by lazy {
         ExifInterface::class.java.fields
             .filter {
                 Modifier.isStatic(it.modifiers) && it.type == String::class.java &&
@@ -287,6 +287,28 @@ object ExifProcessor {
         }
     }
 
+    /**
+     * Cleans a media file on disk (used by the inspector to produce the
+     * "after" view with the exact same engine as the share flow).
+     * Returns false when the format is unsupported.
+     */
+    internal fun cleanFile(source: File, dest: File, template: Template): Boolean {
+        val format = MetadataStripper.detectFormat(source)
+        return when {
+            format == ImageFormat.MP4 -> {
+                source.copyTo(dest, overwrite = true)
+                Mp4Scrubber.scrub(dest, template)
+                true
+            }
+            format != ImageFormat.UNSUPPORTED -> {
+                MetadataStripper.strip(format, source, dest)
+                if (template.needsRewrite) rewriteMetadata(source, dest, template)
+                true
+            }
+            else -> false
+        }
+    }
+
     // -------------------------------------------------------------- helpers
 
     private fun outputName(
@@ -306,7 +328,7 @@ object ExifProcessor {
     private fun stripExtension(name: String): String =
         name.substringBeforeLast('.', name)
 
-    private fun queryDisplayName(context: Context, uri: Uri): String? {
+    internal fun queryDisplayName(context: Context, uri: Uri): String? {
         return try {
             context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
                 ?.use { cursor ->

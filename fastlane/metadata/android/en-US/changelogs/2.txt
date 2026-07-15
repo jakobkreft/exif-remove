@@ -3,5 +3,9 @@ Video support:
   and other metadata are wiped in place, streams are never re-encoded
 * Templates now apply to videos too (keep / remove / randomize)
 * Share videos or mixed photo+video selections to the app
-* Media picker supports photos and videos
+
+New features:
+* Metadata viewer: inspect any photo or video and preview exactly
+  what a template removes, keeps or randomizes
+* First-launch tutorial explaining how and why to use the app
 * Cleaned videos can be saved to Movies

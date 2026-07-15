@@ -85,6 +85,39 @@
     <string name="sum_orientation">Orientation</string>
     <string name="sum_other">Other</string>
 
+    <!-- Metadata viewer -->
+    <string name="view_metadata">View metadata</string>
+    <string name="view_metadata_desc">Inspect a file and preview exactly what a template removes</string>
+    <string name="inspector_intro">Pick a photo or video to see the metadata it carries — and what would be left after cleaning.</string>
+    <string name="pick_file">Pick a photo or video</string>
+    <string name="pick_another">Pick another file</string>
+    <string name="inspector_template">Preview with template</string>
+    <string name="inspector_summary">%1$d entries → %2$d would remain</string>
+    <string name="status_removed">Removed</string>
+    <string name="status_kept">Kept</string>
+    <string name="status_changed">Randomized</string>
+    <string name="status_added">Added</string>
+    <string name="inspector_unsupported_note">This format can\'t be cleaned in place. When shared, it is converted to a fresh JPEG, which removes all metadata.</string>
+    <string name="inspector_no_metadata">No metadata found — this file is already clean.</string>
+    <string name="inspector_could_not_read">Could not read this file.</string>
+
+    <!-- Onboarding -->
+    <string name="tutorial">Tutorial</string>
+    <string name="skip">Skip</string>
+    <string name="next">Next</string>
+    <string name="get_started">Get started</string>
+    <string name="onb1_title">Your photos talk</string>
+    <string name="onb1_body">Every photo and video quietly records details about you. Anyone you share it with can read them.</string>
+    <string name="onb1_where">Where you were</string>
+    <string name="onb1_when">When it was taken</string>
+    <string name="onb1_what">Which device you own</string>
+    <string name="onb2_title">Share it here first</string>
+    <string name="onb2_body">In any app, select your photos or videos and share them to EXIF Remove — or open this app and pick files directly.</string>
+    <string name="onb3_title">Templates decide</string>
+    <string name="onb3_body">A template sets what happens to each kind of metadata: keep it, remove it, or replace it with random values. Use the built-in ones or create your own.</string>
+    <string name="onb4_title">Share the clean copies</string>
+    <string name="onb4_body">You instantly get cleaned copies to pass on — your originals never change. Everything happens on your device, and the built-in metadata viewer lets you verify it yourself.</string>
+
     <!-- About -->
     <string name="about_description">Removes EXIF and other metadata from photos and videos before you share them. Free software, licensed under the GNU GPL v3.</string>
     <string name="version">Version %1$s</string>

@@ -2,6 +2,8 @@ package si.jakobkreft.exifremove.engine
 
 import si.jakobkreft.exifremove.data.RuleAction
 import si.jakobkreft.exifremove.data.Template
+import si.jakobkreft.exifremove.engine.Mp4Boxes.Box
+import si.jakobkreft.exifremove.engine.Mp4Boxes.forEachBox
 import java.io.File
 import java.io.RandomAccessFile
 import kotlin.random.Random
@@ -12,6 +14,12 @@ import kotlin.random.Random
  * reference absolute file positions, so instead of deleting boxes this
  * scrubber renames them to `free` and zero-fills their payload. Audio and
  * video streams are never touched or re-encoded.
+ *
+ * Compatibility note: Android's MPEG4Extractor (used by messengers to
+ * validate incoming videos) is strict about the moov/meta/keys/ilst
+ * structure. Entries inside 'ilst' are therefore never renamed or resized;
+ * either the entire 'meta' box is freed, or entry *values* are blanked in
+ * place, keeping the structure fully valid.
  *
  * Category mapping:
  *  - gps        → ©xyz / loci user-data boxes, *.location.* keys
@@ -53,68 +61,47 @@ object Mp4Scrubber {
         val randomTime: Long,
     )
 
-    private class Box(val type: String, val start: Long, val payloadStart: Long, val end: Long)
-
     // ------------------------------------------------------------- walking
 
-    private fun forEachBox(ctx: Context, start: Long, end: Long, action: (Box) -> Unit) {
-        var pos = start
-        while (pos + 8 <= end) {
-            ctx.raf.seek(pos)
-            var size = readU32(ctx.raf)
-            val type = readType(ctx.raf)
-            var payloadStart = pos + 8
-            if (size == 1L) {
-                size = ctx.raf.readLong()
-                payloadStart = pos + 16
-            } else if (size == 0L) {
-                size = end - pos
-            }
-            if (size < 8 || pos + size > end) return // corrupt; stop walking
-            action(Box(type, pos, payloadStart, pos + size))
-            pos += size
-        }
-    }
-
     private fun walkTopLevel(ctx: Context, start: Long, end: Long) {
-        forEachBox(ctx, start, end) { box ->
+        forEachBox(ctx.raf, start, end) { box ->
             when (box.type) {
                 "moov" -> walkMoov(ctx, box)
-                "uuid" -> if (rule(ctx, Category.OTHER) == RuleAction.REMOVE) freeBox(ctx, box)
+                "uuid" -> if (rule(ctx, MetaCategory.OTHER) == RuleAction.REMOVE) freeBox(ctx, box)
                 "free", "skip" ->
-                    if (rule(ctx, Category.OTHER) == RuleAction.REMOVE) zeroPayload(ctx, box)
+                    if (rule(ctx, MetaCategory.OTHER) == RuleAction.REMOVE) zeroPayload(ctx, box)
                 else -> Unit // ftyp, mdat, moof, …
             }
         }
     }
 
     private fun walkMoov(ctx: Context, moov: Box) {
-        forEachBox(ctx, moov.payloadStart, moov.end) { box ->
+        forEachBox(ctx.raf, moov.payloadStart, moov.end) { box ->
             when (box.type) {
                 "mvhd", "tkhd", "mdhd" -> scrubTimestamps(ctx, box)
                 "trak" -> walkMoov(ctx, box) // same child handling
                 "mdia" -> walkMoov(ctx, box)
                 "udta" -> walkUdta(ctx, box)
                 "meta" -> walkMeta(ctx, box)
-                "uuid" -> if (rule(ctx, Category.OTHER) == RuleAction.REMOVE) freeBox(ctx, box)
+                "uuid" -> if (rule(ctx, MetaCategory.OTHER) == RuleAction.REMOVE) freeBox(ctx, box)
                 "free", "skip" ->
-                    if (rule(ctx, Category.OTHER) == RuleAction.REMOVE) zeroPayload(ctx, box)
+                    if (rule(ctx, MetaCategory.OTHER) == RuleAction.REMOVE) zeroPayload(ctx, box)
                 else -> Unit // minf/stbl/edts etc. are structural; don't descend
             }
         }
     }
 
     private fun walkUdta(ctx: Context, udta: Box) {
-        forEachBox(ctx, udta.payloadStart, udta.end) { box ->
+        forEachBox(ctx.raf, udta.payloadStart, udta.end) { box ->
             if (box.type == "meta") {
                 walkMeta(ctx, box)
                 return@forEachBox
             }
-            val category = fourCcCategory(box.type)
+            val category = Mp4Boxes.fourCcCategory(box.type)
             when (rule(ctx, category)) {
                 RuleAction.REMOVE -> freeBox(ctx, box)
                 RuleAction.RANDOMIZE ->
-                    if (category == Category.GPS && box.type == "©xyz") {
+                    if (category == MetaCategory.LOCATION && box.type == "©xyz") {
                         if (!randomizeUdtaXyz(ctx, box)) freeBox(ctx, box)
                     } else {
                         freeBox(ctx, box)
@@ -125,91 +112,57 @@ object Mp4Scrubber {
     }
 
     private fun walkMeta(ctx: Context, meta: Box) {
-        // 'meta' is a FullBox in ISO files but a bare box in QuickTime.
-        // Sniff: if the first child looks like a box, there is no version field.
-        ctx.raf.seek(meta.payloadStart + 4)
-        val maybeType = readType(ctx.raf)
-        val childStart = if (maybeType in setOf("hdlr", "keys", "ilst", "free")) {
-            meta.payloadStart
-        } else {
-            meta.payloadStart + 4
-        }
+        val childStart = Mp4Boxes.metaChildStart(ctx.raf, meta)
 
-        // First pass: collect the key list (mdta name per 1-based index)
-        val keys = mutableMapOf<Int, String>()
+        var keys = mapOf<Int, String>()
         var ilst: Box? = null
-        forEachBox(ctx, childStart, meta.end) { box ->
+        forEachBox(ctx.raf, childStart, meta.end) { box ->
             when (box.type) {
-                "keys" -> {
-                    ctx.raf.seek(box.payloadStart + 4) // version/flags
-                    val count = readU32(ctx.raf).toInt()
-                    var pos = box.payloadStart + 8
-                    for (index in 1..count) {
-                        if (pos + 8 > box.end) break
-                        ctx.raf.seek(pos)
-                        val entrySize = readU32(ctx.raf)
-                        readType(ctx.raf) // namespace, e.g. mdta
-                        if (entrySize < 8 || pos + entrySize > box.end) break
-                        val name = ByteArray((entrySize - 8).toInt())
-                        ctx.raf.readFully(name)
-                        keys[index] = String(name, Charsets.UTF_8)
-                        pos += entrySize
-                    }
-                }
+                "keys" -> keys = Mp4Boxes.readKeys(ctx.raf, box)
                 "ilst" -> ilst = box
                 else -> Unit
             }
         }
-
         val list = ilst ?: return
-        forEachBox(ctx, list.payloadStart, list.end) { entry ->
-            // Entry "type" is either a 1-based index into keys (mdta style)
-            // or a classic 4cc (iTunes style).
-            val index = entry.type.toByteArray(Charsets.ISO_8859_1)
-                .fold(0) { acc, b -> (acc shl 8) or (b.toInt() and 0xFF) }
-            val keyName = keys[index]
-            val category = keyName?.let { keyNameCategory(it) } ?: fourCcCategory(entry.type)
-            when (rule(ctx, category)) {
-                RuleAction.REMOVE -> freeBox(ctx, entry)
-                RuleAction.RANDOMIZE ->
-                    if (category == Category.GPS) {
-                        if (!randomizeIlstLocation(ctx, entry)) freeBox(ctx, entry)
-                    } else {
-                        freeBox(ctx, entry)
-                    }
+
+        class Entry(val box: Box, val category: MetaCategory)
+        val entries = mutableListOf<Entry>()
+        forEachBox(ctx.raf, list.payloadStart, list.end) { entry ->
+            val keyName = keys[Mp4Boxes.ilstEntryIndex(entry.type)]
+            val category = keyName?.let { Mp4Boxes.keyNameCategory(it) }
+                ?: Mp4Boxes.fourCcCategory(entry.type)
+            entries += Entry(entry, category)
+        }
+        if (entries.isEmpty()) return
+
+        // If nothing must survive, free the whole meta box — a plain 'free'
+        // child of moov/udta/trak, which every parser skips safely.
+        if (entries.all { rule(ctx, it.category) == RuleAction.REMOVE }) {
+            freeBox(ctx, meta)
+            return
+        }
+
+        // Otherwise keep the structure byte-for-byte and only blank values.
+        for (entry in entries) {
+            when (rule(ctx, entry.category)) {
                 RuleAction.KEEP -> Unit
+                RuleAction.RANDOMIZE ->
+                    if (entry.category == MetaCategory.LOCATION) {
+                        if (!randomizeIlstLocation(ctx, entry.box)) blankIlstEntry(ctx, entry.box)
+                    } else {
+                        blankIlstEntry(ctx, entry.box)
+                    }
+                RuleAction.REMOVE -> blankIlstEntry(ctx, entry.box)
             }
         }
     }
 
-    // ---------------------------------------------------------- categories
-
-    private enum class Category { GPS, DATE, CAMERA, OTHER }
-
-    private fun rule(ctx: Context, category: Category): RuleAction = when (category) {
-        Category.GPS -> ctx.template.gps
-        Category.DATE -> ctx.template.dateTime
-        Category.CAMERA -> ctx.template.cameraInfo
-        Category.OTHER -> ctx.template.otherExif
-    }
-
-    private fun keyNameCategory(name: String): Category {
-        val lower = name.lowercase()
-        return when {
-            lower.contains("location") -> Category.GPS
-            lower.contains("creationdate") -> Category.DATE
-            lower.contains("make") || lower.contains("model") ||
-                lower.contains("software") || lower.contains("version") ||
-                lower.contains("manufacturer") -> Category.CAMERA
-            else -> Category.OTHER
-        }
-    }
-
-    private fun fourCcCategory(type: String): Category = when (type) {
-        "©xyz", "loci" -> Category.GPS
-        "©day" -> Category.DATE
-        "©mak", "©mod", "©swr", "©too" -> Category.CAMERA
-        else -> Category.OTHER
+    private fun rule(ctx: Context, category: MetaCategory): RuleAction = when (category) {
+        MetaCategory.LOCATION -> ctx.template.gps
+        MetaCategory.DATE -> ctx.template.dateTime
+        MetaCategory.CAMERA -> ctx.template.cameraInfo
+        MetaCategory.ORIENTATION -> RuleAction.KEEP // structural for video
+        MetaCategory.OTHER -> ctx.template.otherExif
     }
 
     // ------------------------------------------------------------- editing
@@ -234,6 +187,25 @@ object Mp4Scrubber {
             val chunk = minOf(remaining, zeros.size.toLong()).toInt()
             ctx.raf.write(zeros, 0, chunk)
             remaining -= chunk
+        }
+    }
+
+    /**
+     * Blanks the value of an ilst entry without touching its structure:
+     * UTF-8 values (type 1) become spaces, everything else becomes zeros.
+     * Sizes, indexes and the 'data' headers stay byte-for-byte identical.
+     */
+    private fun blankIlstEntry(ctx: Context, entry: Box) {
+        forEachBox(ctx.raf, entry.payloadStart, entry.end) { data ->
+            if (data.type != "data") return@forEachBox
+            ctx.raf.seek(data.payloadStart)
+            val typeIndicator = Mp4Boxes.readU32(ctx.raf)
+            val valueStart = data.payloadStart + 8
+            if (valueStart >= data.end) return@forEachBox
+            val fill = if (typeIndicator == 1L) ' '.code.toByte() else 0
+            val filler = ByteArray((data.end - valueStart).toInt()) { fill }
+            ctx.raf.seek(valueStart)
+            ctx.raf.write(filler)
         }
     }
 
@@ -271,7 +243,7 @@ object Mp4Scrubber {
     /** ilst entry: [data box: type 4 | locale 4 | payload]. */
     private fun randomizeIlstLocation(ctx: Context, entry: Box): Boolean {
         var replaced = false
-        forEachBox(ctx, entry.payloadStart, entry.end) { data ->
+        forEachBox(ctx.raf, entry.payloadStart, entry.end) { data ->
             if (data.type != "data") return@forEachBox
             val payloadLength = (data.end - data.payloadStart - 8).toInt()
             val replacement = randomIso6709(payloadLength) ?: return@forEachBox
@@ -301,15 +273,5 @@ object Mp4Scrubber {
         val latStr = String.format(java.util.Locale.US, "%+0${latDecimals + 4}.${latDecimals}f", lat)
         val lonStr = String.format(java.util.Locale.US, "%+0${lonDecimals + 5}.${lonDecimals}f", lon)
         return "$latStr$lonStr/"
-    }
-
-    // ------------------------------------------------------------- helpers
-
-    private fun readU32(raf: RandomAccessFile): Long = raf.readInt().toLong() and 0xFFFFFFFFL
-
-    private fun readType(raf: RandomAccessFile): String {
-        val bytes = ByteArray(4)
-        raf.readFully(bytes)
-        return String(bytes, Charsets.ISO_8859_1)
     }
 }
