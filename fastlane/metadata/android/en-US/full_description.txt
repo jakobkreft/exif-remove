@@ -1,0 +1,17 @@
+EXIF Remove strips metadata from your photos before you share them, so you don't leak your location, the time a photo was taken, or what device took it.
+
+Share one or more images to EXIF Remove from any app, pick a cleaning template, and share the cleaned copies onward — or open the app and pick images directly.
+
+<b>Templates</b> decide what happens to each metadata category:
+
+* Location (GPS): keep, remove, or randomize
+* Date & time: keep, remove, or randomize
+* Camera, software & author info: keep or remove
+* Orientation: keep or remove
+* Other EXIF data: keep or remove
+
+The app ships with editable built-in templates (Keep orientation, Remove everything, Remove location only, Scramble location & date). Create your own templates, set a default, and optionally skip the picker to clean with one tap.
+
+XMP, IPTC, comments and embedded thumbnails are always removed. ICC color profiles are kept, so colors never change. JPEG, PNG and WebP are cleaned without re-encoding — pixels stay exactly as they were. Other formats such as HEIC can optionally be converted to clean JPEGs. File names can leak information too, so cleaned images can be given random names.
+
+No network access. No tracking. Free software under the GNU GPL v3.

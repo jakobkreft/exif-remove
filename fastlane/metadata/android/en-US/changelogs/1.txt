@@ -1,0 +1,6 @@
+First release:
+* Share-sheet integration for one or many images
+* Configurable cleaning templates (keep / remove / randomize per category)
+* Built-in templates, custom templates, default template
+* JPEG, PNG, WebP cleaned without re-encoding; optional HEIC conversion
+* Random output file names, save to gallery

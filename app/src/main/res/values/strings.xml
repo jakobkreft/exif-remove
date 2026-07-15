@@ -1,0 +1,92 @@
+<resources>
+    <string name="app_name">EXIF Remove</string>
+    <string name="share_target_label">EXIF Remove</string>
+
+    <!-- Main screen -->
+    <string name="templates">Templates</string>
+    <string name="clean_images">Clean images</string>
+    <string name="clean_images_desc">Pick photos, strip their metadata and share them</string>
+    <string name="new_template">New template</string>
+    <string name="default_template">Default</string>
+    <string name="set_as_default">Set as default</string>
+    <string name="edit">Edit</string>
+    <string name="delete">Delete</string>
+    <string name="more_options">More options</string>
+    <string name="restore_default_templates">Restore default templates</string>
+    <string name="default_templates_restored">Default templates restored</string>
+    <string name="settings">Settings</string>
+    <string name="about">About</string>
+    <string name="back">Back</string>
+
+    <!-- Built-in template names -->
+    <string name="tpl_remove_everything">Remove everything</string>
+    <string name="tpl_keep_orientation">Keep orientation</string>
+    <string name="tpl_remove_location_only">Remove location only</string>
+    <string name="tpl_scramble_location_date">Scramble location &amp; date</string>
+
+    <!-- Categories -->
+    <string name="cat_gps">Location (GPS)</string>
+    <string name="cat_datetime">Date &amp; time</string>
+    <string name="cat_camera">Camera, software &amp; author</string>
+    <string name="cat_orientation">Orientation</string>
+    <string name="cat_other">Other EXIF data</string>
+
+    <!-- Actions -->
+    <string name="action_keep">Keep</string>
+    <string name="action_remove">Remove</string>
+    <string name="action_randomize">Randomize</string>
+
+    <!-- Template editor -->
+    <string name="edit_template">Edit template</string>
+    <string name="template_name">Template name</string>
+    <string name="template_name_empty">Name can\'t be empty</string>
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="always_removed_note">XMP, IPTC, comments and embedded thumbnails are always removed. Colors are never affected (ICC profiles are kept).</string>
+    <string name="delete_template_title">Delete template?</string>
+    <string name="delete_template_message">“%1$s” will be removed. Built-in templates can be brought back with “Restore default templates”.</string>
+
+    <!-- Settings -->
+    <string name="setting_skip_dialog">Skip template picker</string>
+    <string name="setting_skip_dialog_desc">When sharing, immediately clean with the default template</string>
+    <string name="setting_random_filename">Random file names</string>
+    <string name="setting_random_filename_desc">Rename cleaned images (file names can reveal information)</string>
+    <string name="setting_convert_unsupported">Convert unsupported formats</string>
+    <string name="setting_convert_unsupported_desc">Re-encode formats that can\'t be cleaned in place (such as HEIC) to JPEG</string>
+
+    <!-- Share flow -->
+    <plurals name="clean_n_images">
+        <item quantity="one">Clean %d image</item>
+        <item quantity="other">Clean %d images</item>
+    </plurals>
+    <string name="choose_template">Choose a template</string>
+    <string name="processing">Cleaning…</string>
+    <plurals name="n_images_ready">
+        <item quantity="one">%d image cleaned</item>
+        <item quantity="other">%d images cleaned</item>
+    </plurals>
+    <plurals name="n_images_failed">
+        <item quantity="one">%d image failed</item>
+        <item quantity="other">%d images failed</item>
+    </plurals>
+    <string name="share">Share</string>
+    <string name="save_to_gallery">Save to gallery</string>
+    <string name="saved_to_gallery">Saved to Pictures/EXIF Remove</string>
+    <string name="nothing_to_share">No images were received</string>
+    <string name="nothing_could_be_cleaned">None of the images could be cleaned</string>
+    <string name="error_unsupported_format">Unsupported format</string>
+    <string name="error_could_not_read">Could not read image</string>
+
+    <!-- Short category labels for template summaries -->
+    <string name="sum_location">Location</string>
+    <string name="sum_date">Date</string>
+    <string name="sum_camera">Camera</string>
+    <string name="sum_orientation">Orientation</string>
+    <string name="sum_other">Other</string>
+
+    <!-- About -->
+    <string name="about_description">Removes EXIF and other metadata from photos before you share them. Free software, licensed under the GNU GPL v3.</string>
+    <string name="version">Version %1$s</string>
+    <string name="source_code">Source code</string>
+    <string name="license">License: GNU GPL v3.0</string>
+</resources>

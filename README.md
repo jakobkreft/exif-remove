@@ -1,0 +1,40 @@
+# EXIF Remove
+
+Remove EXIF and other metadata from photos before you share them.
+
+EXIF Remove registers itself as a share target: share one or more images to it
+from any app, pick a cleaning template, and share the cleaned copies onward.
+No network access, no tracking, free software.
+
+## Features
+
+- Appears in the Android share sheet for single or multiple images
+- **Templates** decide what happens to each metadata category:
+  - Location (GPS): keep, remove, or randomize
+  - Date & time: keep, remove, or randomize
+  - Camera, software & author info: keep or remove
+  - Orientation: keep or remove
+  - Other EXIF data: keep or remove
+- Ships with editable built-in templates (*Keep orientation*, *Remove
+  everything*, *Remove location only*, *Scramble location & date*);
+  create your own, set a default, restore the built-ins any time
+- XMP, IPTC, comments and embedded thumbnails are always removed;
+  ICC color profiles are kept so colors never change
+- Supports JPEG, PNG and WebP without re-encoding (pixels are untouched);
+  other formats (e.g. HEIC) can optionally be converted to clean JPEGs
+- Optional random output file names (file names can leak information too)
+- Save cleaned copies to the gallery, or skip the picker entirely and
+  clean with your default template in one tap
+- Material 3 UI with dynamic colors, light/dark theme
+
+## Building
+
+Requires JDK 17+ and the Android SDK.
+
+```
+./gradlew assembleRelease
+```
+
+## License
+
+[GNU General Public License v3.0](LICENSE)

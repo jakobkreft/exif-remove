@@ -1,0 +1,1 @@
+Remove or scramble photo metadata before sharing, with configurable templates
