@@ -8,6 +8,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -52,13 +53,13 @@ private fun AppNavigation() {
     var screen by rememberSaveable { mutableStateOf(SCREEN_HOME) }
     var editingTemplateId by rememberSaveable { mutableStateOf<String?>(null) }
 
-    val pickImages = rememberLauncherForActivityResult(
-        ActivityResultContracts.GetMultipleContents()
+    val pickMedia = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickMultipleVisualMedia()
     ) { uris: List<Uri> ->
         if (uris.isNotEmpty()) {
             val intent = Intent(context, ShareActivity::class.java).apply {
                 action = Intent.ACTION_SEND_MULTIPLE
-                type = "image/*"
+                type = "*/*"
                 putParcelableArrayListExtra(Intent.EXTRA_STREAM, ArrayList(uris))
             }
             context.startActivity(intent)
@@ -71,7 +72,13 @@ private fun AppNavigation() {
     when (screen) {
         SCREEN_HOME -> MainScreen(
             state = appState,
-            onCleanImages = { pickImages.launch("image/*") },
+            onCleanImages = {
+                pickMedia.launch(
+                    PickVisualMediaRequest(
+                        ActivityResultContracts.PickVisualMedia.ImageAndVideo
+                    )
+                )
+            },
             onNewTemplate = {
                 editingTemplateId = null
                 screen = SCREEN_EDITOR

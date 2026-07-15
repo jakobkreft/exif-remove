@@ -65,6 +65,9 @@ object ExifProcessor {
             }
 
             val format = MetadataStripper.detectFormat(temp)
+            if (format == ImageFormat.MP4) {
+                return processVideo(context, uri, temp, originalName, template, options, outDir)
+            }
             return if (format != ImageFormat.UNSUPPORTED) {
                 val (ext, mime) = when (format) {
                     ImageFormat.JPEG -> "jpg" to "image/jpeg"
@@ -91,6 +94,38 @@ object ExifProcessor {
             }
         } finally {
             temp.delete()
+        }
+    }
+
+    /** Copies the video and scrubs its metadata boxes in place. */
+    private fun processVideo(
+        context: Context,
+        uri: Uri,
+        temp: File,
+        originalName: String?,
+        template: Template,
+        options: ProcessorOptions,
+        outDir: File,
+    ): ProcessedImage {
+        val nameExt = originalName?.substringAfterLast('.', "")?.lowercase()
+        val ext = if (nameExt in setOf("mp4", "mov", "3gp", "m4v")) nameExt!! else "mp4"
+        val resolverMime = try {
+            context.contentResolver.getType(uri)
+        } catch (e: Exception) {
+            null
+        }
+        val mime = if (resolverMime?.startsWith("video/") == true) resolverMime else "video/mp4"
+        val outName = outputName(originalName, ext, options, prefix = "VID_")
+        val outFile = File(outDir, outName)
+        return try {
+            temp.inputStream().use { ins ->
+                outFile.outputStream().use { outs -> ins.copyTo(outs) }
+            }
+            Mp4Scrubber.scrub(outFile, template)
+            ProcessedImage(outFile, outName, mime)
+        } catch (e: Exception) {
+            outFile.delete()
+            ProcessedImage(null, originalName ?: outName, mime, ProcessError.UNREADABLE)
         }
     }
 
@@ -254,10 +289,15 @@ object ExifProcessor {
 
     // -------------------------------------------------------------- helpers
 
-    private fun outputName(originalName: String?, ext: String, options: ProcessorOptions): String {
+    private fun outputName(
+        originalName: String?,
+        ext: String,
+        options: ProcessorOptions,
+        prefix: String = "IMG_",
+    ): String {
         if (options.randomFileNames || originalName.isNullOrBlank()) {
             val random = List(8) { "0123456789abcdef".random() }.joinToString("")
-            return "IMG_$random.$ext"
+            return "$prefix$random.$ext"
         }
         val sanitized = originalName.replace(Regex("[/\\\\:*?\"<>|]"), "_")
         return if (sanitized.contains('.')) sanitized else "$sanitized.$ext"

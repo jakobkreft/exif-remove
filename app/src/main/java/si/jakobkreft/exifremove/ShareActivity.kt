@@ -105,7 +105,12 @@ class ShareActivity : ComponentActivity() {
                 putParcelableArrayListExtra(Intent.EXTRA_STREAM, contentUris)
             }
         }
-        shareIntent.type = if (mimeTypes.size == 1) mimeTypes[0] else "image/*"
+        shareIntent.type = when {
+            mimeTypes.size == 1 -> mimeTypes[0]
+            mimeTypes.all { it.startsWith("image/") } -> "image/*"
+            mimeTypes.all { it.startsWith("video/") } -> "video/*"
+            else -> "*/*"
+        }
         shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         val chooser = Intent.createChooser(shareIntent, null).apply {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -122,22 +127,29 @@ class ShareActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
         lifecycleScope.launch {
             withContext(Dispatchers.IO) {
-                for (image in images) {
-                    val file = image.file ?: continue
+                for (item in images) {
+                    val file = item.file ?: continue
+                    val isVideo = item.mimeType.startsWith("video/")
                     val values = ContentValues().apply {
-                        put(MediaStore.Images.Media.DISPLAY_NAME, image.displayName)
-                        put(MediaStore.Images.Media.MIME_TYPE, image.mimeType)
-                        put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/EXIF Remove")
-                        put(MediaStore.Images.Media.IS_PENDING, 1)
+                        put(MediaStore.MediaColumns.DISPLAY_NAME, item.displayName)
+                        put(MediaStore.MediaColumns.MIME_TYPE, item.mimeType)
+                        put(
+                            MediaStore.MediaColumns.RELATIVE_PATH,
+                            if (isVideo) "Movies/EXIF Remove" else "Pictures/EXIF Remove",
+                        )
+                        put(MediaStore.MediaColumns.IS_PENDING, 1)
                     }
-                    val collection =
+                    val collection = if (isVideo) {
+                        MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                    } else {
                         MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                    }
                     val itemUri = contentResolver.insert(collection, values) ?: continue
                     contentResolver.openOutputStream(itemUri)?.use { outs ->
                         file.inputStream().use { ins -> ins.copyTo(outs) }
                     }
                     values.clear()
-                    values.put(MediaStore.Images.Media.IS_PENDING, 0)
+                    values.put(MediaStore.MediaColumns.IS_PENDING, 0)
                     contentResolver.update(itemUri, values, null, null)
                 }
             }

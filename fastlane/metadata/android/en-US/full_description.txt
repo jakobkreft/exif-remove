@@ -1,6 +1,6 @@
-EXIF Remove strips metadata from your photos before you share them, so you don't leak your location, the time a photo was taken, or what device took it.
+EXIF Remove strips metadata from your photos and videos before you share them, so you don't leak your location, the time a photo was taken, or what device took it.
 
-Share one or more images to EXIF Remove from any app, pick a cleaning template, and share the cleaned copies onward — or open the app and pick images directly.
+Share one or more photos or videos to EXIF Remove from any app, pick a cleaning template, and share the cleaned copies onward — or open the app and pick media directly.
 
 <b>Templates</b> decide what happens to each metadata category:
 
@@ -12,6 +12,6 @@ Share one or more images to EXIF Remove from any app, pick a cleaning template, 
 
 The app ships with editable built-in templates (Keep orientation, Remove everything, Remove location only, Scramble location & date). Create your own templates, set a default, and optionally skip the picker to clean with one tap.
 
-XMP, IPTC, comments and embedded thumbnails are always removed. ICC color profiles are kept, so colors never change. JPEG, PNG and WebP are cleaned without re-encoding — pixels stay exactly as they were. Other formats such as HEIC can optionally be converted to clean JPEGs. File names can leak information too, so cleaned images can be given random names.
+XMP, IPTC, comments and embedded thumbnails are always removed. ICC color profiles are kept, so colors never change. JPEG, PNG and WebP are cleaned without re-encoding — pixels stay exactly as they were. Other image formats such as HEIC can optionally be converted to clean JPEGs. Videos (MP4, MOV, 3GP) are cleaned in place: device info, location, timestamps and other metadata are wiped without re-encoding, so it works instantly even on large recordings. File names can leak information too, so cleaned files can be given random names.
 
 No network access. No tracking. Free software under the GNU GPL v3.

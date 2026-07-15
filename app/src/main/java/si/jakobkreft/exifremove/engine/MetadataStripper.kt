@@ -7,7 +7,7 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.io.RandomAccessFile
 
-enum class ImageFormat { JPEG, PNG, WEBP, UNSUPPORTED }
+enum class ImageFormat { JPEG, PNG, WEBP, MP4, UNSUPPORTED }
 
 /**
  * Rewrites image containers while dropping every metadata-carrying segment.
@@ -30,9 +30,12 @@ object MetadataStripper {
                 header[2] == 'F'.code.toByte() && header[3] == 'F'.code.toByte() &&
                 header[8] == 'W'.code.toByte() && header[9] == 'E'.code.toByte() &&
                 header[10] == 'B'.code.toByte() && header[11] == 'P'.code.toByte() -> ImageFormat.WEBP
+            String(header, 4, 4, Charsets.US_ASCII) in MP4_FIRST_BOXES -> ImageFormat.MP4
             else -> ImageFormat.UNSUPPORTED
         }
     }
+
+    private val MP4_FIRST_BOXES = setOf("ftyp", "moov", "mdat", "free", "skip", "wide")
 
     fun strip(format: ImageFormat, source: File, dest: File) {
         when (format) {
@@ -43,6 +46,7 @@ object MetadataStripper {
                 dest.outputStream().buffered().use { outs -> stripPng(ins, outs) }
             }
             ImageFormat.WEBP -> stripWebp(source, dest)
+            ImageFormat.MP4 -> throw IOException("Videos are handled by Mp4Scrubber")
             ImageFormat.UNSUPPORTED -> throw IOException("Unsupported format")
         }
     }

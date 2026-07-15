@@ -139,6 +139,7 @@ fun TemplateEditorScreen(
             )
             CategoryRow(
                 label = stringResource(R.string.cat_orientation),
+                hint = stringResource(R.string.cat_orientation_hint),
                 value = orientation,
                 options = listOf(RuleAction.KEEP, RuleAction.REMOVE),
                 onChange = { orientation = it },
@@ -181,9 +182,17 @@ private fun CategoryRow(
     value: RuleAction,
     options: List<RuleAction>,
     onChange: (RuleAction) -> Unit,
+    hint: String? = null,
 ) {
     Column {
         Text(label, style = MaterialTheme.typography.titleSmall)
+        if (hint != null) {
+            Text(
+                hint,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         Spacer(Modifier.height(8.dp))
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
             options.forEachIndexed { index, option ->

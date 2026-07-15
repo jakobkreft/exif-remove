@@ -4,8 +4,8 @@
 
     <!-- Main screen -->
     <string name="templates">Templates</string>
-    <string name="clean_images">Clean images</string>
-    <string name="clean_images_desc">Pick photos, strip their metadata and share them</string>
+    <string name="clean_images">Clean photos &amp; videos</string>
+    <string name="clean_images_desc">Pick photos or videos, strip their metadata and share them</string>
     <string name="new_template">New template</string>
     <string name="default_template">Default</string>
     <string name="set_as_default">Set as default</string>
@@ -29,7 +29,8 @@
     <string name="cat_datetime">Date &amp; time</string>
     <string name="cat_camera">Camera, software &amp; author</string>
     <string name="cat_orientation">Orientation</string>
-    <string name="cat_other">Other EXIF data</string>
+    <string name="cat_orientation_hint">Photos only</string>
+    <string name="cat_other">Other metadata</string>
 
     <!-- Actions -->
     <string name="action_keep">Keep</string>
@@ -42,7 +43,7 @@
     <string name="template_name_empty">Name can\'t be empty</string>
     <string name="save">Save</string>
     <string name="cancel">Cancel</string>
-    <string name="always_removed_note">XMP, IPTC, comments and embedded thumbnails are always removed. Colors are never affected (ICC profiles are kept).</string>
+    <string name="always_removed_note">Photos: XMP, IPTC, comments and embedded thumbnails are always removed; ICC color profiles are kept, so colors never change. Videos (MP4, MOV, 3GP): metadata is wiped in place and streams are never re-encoded.</string>
     <string name="delete_template_title">Delete template?</string>
     <string name="delete_template_message">“%1$s” will be removed. Built-in templates can be brought back with “Restore default templates”.</string>
 
@@ -50,30 +51,30 @@
     <string name="setting_skip_dialog">Skip template picker</string>
     <string name="setting_skip_dialog_desc">When sharing, immediately clean with the default template</string>
     <string name="setting_random_filename">Random file names</string>
-    <string name="setting_random_filename_desc">Rename cleaned images (file names can reveal information)</string>
+    <string name="setting_random_filename_desc">Rename cleaned files (file names can reveal information)</string>
     <string name="setting_convert_unsupported">Convert unsupported formats</string>
-    <string name="setting_convert_unsupported_desc">Re-encode formats that can\'t be cleaned in place (such as HEIC) to JPEG</string>
+    <string name="setting_convert_unsupported_desc">Re-encode image formats that can\'t be cleaned in place (such as HEIC) to JPEG. Images only</string>
 
     <!-- Share flow -->
     <plurals name="clean_n_images">
-        <item quantity="one">Clean %d image</item>
-        <item quantity="other">Clean %d images</item>
+        <item quantity="one">Clean %d file</item>
+        <item quantity="other">Clean %d files</item>
     </plurals>
     <string name="choose_template">Choose a template</string>
     <string name="processing">Cleaning…</string>
     <plurals name="n_images_ready">
-        <item quantity="one">%d image cleaned</item>
-        <item quantity="other">%d images cleaned</item>
+        <item quantity="one">%d file cleaned</item>
+        <item quantity="other">%d files cleaned</item>
     </plurals>
     <plurals name="n_images_failed">
-        <item quantity="one">%d image failed</item>
-        <item quantity="other">%d images failed</item>
+        <item quantity="one">%d file failed</item>
+        <item quantity="other">%d files failed</item>
     </plurals>
     <string name="share">Share</string>
     <string name="save_to_gallery">Save to gallery</string>
-    <string name="saved_to_gallery">Saved to Pictures/EXIF Remove</string>
-    <string name="nothing_to_share">No images were received</string>
-    <string name="nothing_could_be_cleaned">None of the images could be cleaned</string>
+    <string name="saved_to_gallery">Saved to gallery</string>
+    <string name="nothing_to_share">No files were received</string>
+    <string name="nothing_could_be_cleaned">None of the files could be cleaned</string>
     <string name="error_unsupported_format">Unsupported format</string>
     <string name="error_could_not_read">Could not read image</string>
 
@@ -85,7 +86,7 @@
     <string name="sum_other">Other</string>
 
     <!-- About -->
-    <string name="about_description">Removes EXIF and other metadata from photos before you share them. Free software, licensed under the GNU GPL v3.</string>
+    <string name="about_description">Removes EXIF and other metadata from photos and videos before you share them. Free software, licensed under the GNU GPL v3.</string>
     <string name="version">Version %1$s</string>
     <string name="source_code">Source code</string>
     <string name="license">License: GNU GPL v3.0</string>
