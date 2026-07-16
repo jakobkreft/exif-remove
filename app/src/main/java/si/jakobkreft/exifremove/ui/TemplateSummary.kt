@@ -18,7 +18,6 @@ fun templateSummary(template: Template): String {
         stringResource(R.string.sum_location) to action(template.gps),
         stringResource(R.string.sum_date) to action(template.dateTime),
         stringResource(R.string.sum_camera) to action(template.cameraInfo),
-        stringResource(R.string.sum_orientation) to action(template.orientation),
         stringResource(R.string.sum_other) to action(template.otherExif),
     ).joinToString(" · ") { (label, act) -> "$label: $act" }
 }

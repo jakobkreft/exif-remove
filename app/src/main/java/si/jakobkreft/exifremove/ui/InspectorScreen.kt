@@ -61,6 +61,8 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import si.jakobkreft.exifremove.R
 import si.jakobkreft.exifremove.data.AppState
+import si.jakobkreft.exifremove.data.RuleAction
+import si.jakobkreft.exifremove.data.Template
 import si.jakobkreft.exifremove.engine.Inspection
 import si.jakobkreft.exifremove.engine.Inspector
 import si.jakobkreft.exifremove.engine.MetaCategory
@@ -72,6 +74,8 @@ private class CompareRow(
     val entry: MetaEntry,
     val status: RowStatus,
     val newValue: String?,
+    /** True when the change came from a RANDOMIZE rule (vs. an edit side effect). */
+    val randomized: Boolean = false,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -196,7 +200,9 @@ private fun InspectionResult(
     onTemplateSelected: (String) -> Unit,
     padding: PaddingValues,
 ) {
-    val rows = remember(result) { buildRows(result) }
+    val template = state.templates.firstOrNull { it.id == selectedTemplateId }
+        ?: state.defaultTemplate
+    val rows = remember(result, template) { buildRows(result, template) }
     val remaining = result.after?.size ?: 0
     var templateMenuOpen by remember { mutableStateOf(false) }
 
@@ -357,14 +363,14 @@ private fun MetaRow(row: CompareRow) {
                 }
             }
             Spacer(Modifier.width(12.dp))
-            StatusChip(row.status)
+            StatusChip(row)
         }
     }
 }
 
 @Composable
-private fun StatusChip(status: RowStatus) {
-    val (label, container, content) = when (status) {
+private fun StatusChip(row: CompareRow) {
+    val (label, container, content) = when (row.status) {
         RowStatus.REMOVED -> Triple(
             stringResource(R.string.status_removed),
             MaterialTheme.colorScheme.errorContainer,
@@ -376,7 +382,9 @@ private fun StatusChip(status: RowStatus) {
             MaterialTheme.colorScheme.onSurfaceVariant,
         )
         RowStatus.CHANGED -> Triple(
-            stringResource(R.string.status_changed),
+            stringResource(
+                if (row.randomized) R.string.status_randomized else R.string.status_modified
+            ),
             MaterialTheme.colorScheme.tertiaryContainer,
             MaterialTheme.colorScheme.onTertiaryContainer,
         )
@@ -394,20 +402,29 @@ private fun StatusChip(status: RowStatus) {
     }
 }
 
-private fun buildRows(result: Inspection): List<CompareRow> {
+private fun buildRows(result: Inspection, template: Template): List<CompareRow> {
     val after = result.after ?: return result.before.map {
         CompareRow(it, RowStatus.REMOVED, null)
     }
     val afterByName = after.groupBy { it.name }
     return result.before.map { entry ->
         val match = afterByName[entry.name]?.firstOrNull()
+        val randomized = template.ruleFor(entry.category) == RuleAction.RANDOMIZE
         when {
             match == null -> CompareRow(entry, RowStatus.REMOVED, null)
             match.value.trim() == entry.value.trim() -> CompareRow(entry, RowStatus.KEPT, null)
             match.value.isBlank() -> CompareRow(entry, RowStatus.REMOVED, null)
-            else -> CompareRow(entry, RowStatus.CHANGED, match.value)
+            else -> CompareRow(entry, RowStatus.CHANGED, match.value, randomized)
         }
     }
+}
+
+private fun Template.ruleFor(category: MetaCategory): RuleAction = when (category) {
+    MetaCategory.LOCATION -> gps
+    MetaCategory.DATE -> dateTime
+    MetaCategory.CAMERA -> cameraInfo
+    MetaCategory.ORIENTATION -> RuleAction.KEEP
+    MetaCategory.OTHER -> otherExif
 }
 
 @Composable

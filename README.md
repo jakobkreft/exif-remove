@@ -13,13 +13,15 @@ copies onward. No network access, no tracking, free software.
   - Location (GPS): keep, remove, or randomize
   - Date & time: keep, remove, or randomize
   - Camera, software & author info: keep or remove
-  - Orientation: keep or remove
-  - Other EXIF data: keep or remove
-- Ships with editable built-in templates (*Keep orientation*, *Remove
-  everything*, *Remove location only*, *Scramble location & date*);
+  - Other metadata: keep or remove
+- Ships with editable built-in templates (*Remove everything*,
+  *Remove location only*, *Scramble location & date*);
   create your own, set a default, restore the built-ins any time
-- XMP, IPTC, comments and embedded thumbnails are always removed;
-  ICC color profiles are kept so colors never change
+- Orientation is always kept (photos never show up rotated); XMP, IPTC,
+  comments and embedded thumbnails are always removed; ICC color
+  profiles are kept so colors never change
+- Keeping a category keeps it byte-for-byte: cleaning is surgical, not
+  a lossy rewrite
 - Supports JPEG, PNG and WebP without re-encoding (pixels are untouched);
   other image formats (e.g. HEIC) can optionally be converted to clean JPEGs
 - Cleans MP4, MOV and 3GP videos in place: device info, location, creation

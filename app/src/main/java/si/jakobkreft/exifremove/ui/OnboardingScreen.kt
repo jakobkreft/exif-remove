@@ -248,7 +248,7 @@ private fun IllustrationTemplates() {
             MaterialTheme.colorScheme.onTertiaryContainer,
         )
         TemplateExampleRow(
-            stringResource(R.string.sum_orientation),
+            stringResource(R.string.sum_other),
             stringResource(R.string.action_keep),
             MaterialTheme.colorScheme.secondaryContainer,
             MaterialTheme.colorScheme.onSecondaryContainer,

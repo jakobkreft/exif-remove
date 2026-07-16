@@ -224,7 +224,10 @@ class Mp4ScrubberTest {
     fun `metadata reader lists entries before and nothing sensitive after`() {
         val file = tmp.newFile().apply { writeBytes(buildMp4()) }
         val before = Mp4MetadataReader.read(file)
-        assertTrue(before.any { it.category == MetaCategory.LOCATION && it.value == gpsString })
+        // "+46.0511+014.5051/" is displayed in DMS format
+        assertTrue(before.any {
+            it.category == MetaCategory.LOCATION && it.value == "46° 3′ 3.96″ N, 14° 30′ 18.36″ E"
+        })
         assertTrue(before.any { it.value == "Pixel 10 Pro" })
         assertTrue(before.any { it.value == "Google" && it.name == "Make" })
         assertTrue(before.any { it.category == MetaCategory.DATE })

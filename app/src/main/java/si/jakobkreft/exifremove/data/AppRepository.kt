@@ -51,13 +51,16 @@ class AppRepository(private val context: Context) {
         val templates = this[Keys.TEMPLATES]?.let {
             try {
                 json.decodeFromString(templateListSerializer, it)
+                    // Migration: orientation is always kept now
+                    .filterNot { template -> template.id == Template.LEGACY_ID_KEEP_ORIENTATION }
+                    .ifEmpty { null }
             } catch (e: Exception) {
                 null
             }
         } ?: Template.builtIns()
         return AppState(
             templates = templates,
-            defaultTemplateId = this[Keys.DEFAULT_TEMPLATE] ?: Template.ID_KEEP_ORIENTATION,
+            defaultTemplateId = this[Keys.DEFAULT_TEMPLATE] ?: Template.ID_REMOVE_EVERYTHING,
             skipDialog = this[Keys.SKIP_DIALOG] ?: false,
             randomFileNames = this[Keys.RANDOM_FILE_NAMES] ?: true,
             convertUnsupported = this[Keys.CONVERT_UNSUPPORTED] ?: true,

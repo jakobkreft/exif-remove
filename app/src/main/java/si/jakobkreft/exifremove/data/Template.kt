@@ -7,6 +7,7 @@ enum class RuleAction { KEEP, REMOVE, RANDOMIZE }
 
 /**
  * A cleaning template. Each category of metadata gets an action.
+ * Orientation is always preserved (photos would appear rotated otherwise).
  * XMP, IPTC, comments and embedded thumbnails are always removed;
  * ICC color profiles are always kept.
  */
@@ -17,28 +18,23 @@ data class Template(
     val gps: RuleAction = RuleAction.REMOVE,
     val dateTime: RuleAction = RuleAction.REMOVE,
     val cameraInfo: RuleAction = RuleAction.REMOVE,
-    val orientation: RuleAction = RuleAction.REMOVE,
     val otherExif: RuleAction = RuleAction.REMOVE,
     val builtIn: Boolean = false,
 ) {
-    /** True when some metadata must be written back after stripping. */
+    /** True when some metadata must be written back after a full strip. */
     val needsRewrite: Boolean
-        get() = listOf(gps, dateTime, cameraInfo, orientation, otherExif)
+        get() = listOf(gps, dateTime, cameraInfo, otherExif)
             .any { it != RuleAction.REMOVE }
 
     companion object {
         const val ID_REMOVE_EVERYTHING = "builtin-remove-everything"
-        const val ID_KEEP_ORIENTATION = "builtin-keep-orientation"
         const val ID_REMOVE_LOCATION = "builtin-remove-location"
         const val ID_SCRAMBLE = "builtin-scramble"
 
+        /** Removed in 1.1: orientation is now always kept. */
+        const val LEGACY_ID_KEEP_ORIENTATION = "builtin-keep-orientation"
+
         fun builtIns(): List<Template> = listOf(
-            Template(
-                id = ID_KEEP_ORIENTATION,
-                name = "Keep orientation",
-                orientation = RuleAction.KEEP,
-                builtIn = true,
-            ),
             Template(
                 id = ID_REMOVE_EVERYTHING,
                 name = "Remove everything",
@@ -50,7 +46,6 @@ data class Template(
                 gps = RuleAction.REMOVE,
                 dateTime = RuleAction.KEEP,
                 cameraInfo = RuleAction.KEEP,
-                orientation = RuleAction.KEEP,
                 otherExif = RuleAction.KEEP,
                 builtIn = true,
             ),
@@ -59,7 +54,6 @@ data class Template(
                 name = "Scramble location & date",
                 gps = RuleAction.RANDOMIZE,
                 dateTime = RuleAction.RANDOMIZE,
-                orientation = RuleAction.KEEP,
                 builtIn = true,
             ),
         )

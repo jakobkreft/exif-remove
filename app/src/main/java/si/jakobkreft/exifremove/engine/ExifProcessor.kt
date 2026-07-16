@@ -78,10 +78,7 @@ object ExifProcessor {
                 val outName = outputName(originalName, ext, options)
                 val outFile = File(outDir, outName)
                 try {
-                    MetadataStripper.strip(format, temp, outFile)
-                    if (template.needsRewrite) {
-                        rewriteMetadata(temp, outFile, template)
-                    }
+                    cleanFile(temp, outFile, template)
                     ProcessedImage(outFile, outName, mime)
                 } catch (e: Exception) {
                     outFile.delete()
@@ -118,10 +115,7 @@ object ExifProcessor {
         val outName = outputName(originalName, ext, options, prefix = "VID_")
         val outFile = File(outDir, outName)
         return try {
-            temp.inputStream().use { ins ->
-                outFile.outputStream().use { outs -> ins.copyTo(outs) }
-            }
-            Mp4Scrubber.scrub(outFile, template)
+            cleanFile(temp, outFile, template)
             ProcessedImage(outFile, outName, mime)
         } catch (e: Exception) {
             outFile.delete()
@@ -149,7 +143,7 @@ object ExifProcessor {
             bitmap.recycle()
         }
         try {
-            if (template.needsRewrite) rewriteMetadata(source, outFile, template)
+            copyBackKeptTags(source, outFile, template)
         } catch (ignored: Exception) {
             // The JPEG itself is clean; kept metadata is best-effort here.
         }
@@ -185,33 +179,6 @@ object ExifProcessor {
         ExifInterface.TAG_MAKER_NOTE,
     )
 
-    /**
-     * Tags never copied when keeping "other" data: XMP (stripped by design),
-     * thumbnail pointers and structural fields describing the encoded stream.
-     */
-    private val EXCLUDED_TAGS = setOf(
-        ExifInterface.TAG_XMP,
-        ExifInterface.TAG_ORIENTATION,
-        ExifInterface.TAG_JPEG_INTERCHANGE_FORMAT,
-        ExifInterface.TAG_JPEG_INTERCHANGE_FORMAT_LENGTH,
-        ExifInterface.TAG_THUMBNAIL_IMAGE_LENGTH,
-        ExifInterface.TAG_THUMBNAIL_IMAGE_WIDTH,
-        ExifInterface.TAG_THUMBNAIL_ORIENTATION,
-        ExifInterface.TAG_IMAGE_WIDTH,
-        ExifInterface.TAG_IMAGE_LENGTH,
-        ExifInterface.TAG_BITS_PER_SAMPLE,
-        ExifInterface.TAG_COMPRESSION,
-        ExifInterface.TAG_PHOTOMETRIC_INTERPRETATION,
-        ExifInterface.TAG_SAMPLES_PER_PIXEL,
-        ExifInterface.TAG_PLANAR_CONFIGURATION,
-        ExifInterface.TAG_ROWS_PER_STRIP,
-        ExifInterface.TAG_STRIP_BYTE_COUNTS,
-        ExifInterface.TAG_STRIP_OFFSETS,
-        ExifInterface.TAG_Y_CB_CR_COEFFICIENTS,
-        ExifInterface.TAG_Y_CB_CR_POSITIONING,
-        ExifInterface.TAG_Y_CB_CR_SUB_SAMPLING,
-    )
-
     /** All TAG_* constants of ExifInterface, discovered once via reflection. */
     internal val ALL_TAGS: List<String> by lazy {
         ExifInterface::class.java.fields
@@ -223,7 +190,109 @@ object ExifProcessor {
             .distinct()
     }
 
-    private fun rewriteMetadata(original: File, cleaned: File, template: Template) {
+    /**
+     * Path A (template keeps "other" metadata): the EXIF block survived the
+     * strip; delete or randomize only the targeted categories in place so
+     * every kept tag stays byte-for-byte identical.
+     */
+    private fun editExifSurgically(original: File, cleaned: File, template: Template) {
+        val exif = ExifInterface(cleaned.absolutePath)
+
+        fun clearTag(tag: String) {
+            try {
+                exif.setAttribute(tag, null)
+            } catch (ignored: Exception) {
+                // Not writable; nothing to clear.
+            }
+        }
+
+        when (template.gps) {
+            RuleAction.KEEP -> Unit
+            RuleAction.REMOVE -> ALL_TAGS.filter { it.startsWith("GPS") }.forEach(::clearTag)
+            RuleAction.RANDOMIZE -> {
+                ALL_TAGS.filter { it.startsWith("GPS") }.forEach(::clearTag)
+                exif.setLatLong(randomLatitude(), randomLongitude())
+            }
+        }
+
+        when (template.dateTime) {
+            RuleAction.KEEP -> Unit
+            RuleAction.REMOVE -> DATE_TAGS.forEach(::clearTag)
+            RuleAction.RANDOMIZE -> {
+                DATE_TAGS.forEach(::clearTag)
+                setRandomDateTime(exif)
+            }
+        }
+
+        if (template.cameraInfo == RuleAction.REMOVE) {
+            CAMERA_TAGS.forEach(::clearTag)
+        }
+
+        // Always removed, even in keep-other mode: the embedded thumbnail
+        // (a smaller copy of the possibly-uncleaned image).
+        clearTag(ExifInterface.TAG_JPEG_INTERCHANGE_FORMAT)
+        clearTag(ExifInterface.TAG_JPEG_INTERCHANGE_FORMAT_LENGTH)
+        clearTag(ExifInterface.TAG_THUMBNAIL_IMAGE_WIDTH)
+        clearTag(ExifInterface.TAG_THUMBNAIL_IMAGE_LENGTH)
+        clearTag(ExifInterface.TAG_THUMBNAIL_ORIENTATION)
+        clearTag(ExifInterface.TAG_XMP)
+        disableThumbnailWriteback(exif)
+
+        // ExifInterface synthesizes these while parsing any file (image size
+        // from the stream, "0" defaults); never write them back. A genuinely
+        // stored light source has a non-zero value and is kept.
+        clearTag(ExifInterface.TAG_IMAGE_WIDTH)
+        clearTag(ExifInterface.TAG_IMAGE_LENGTH)
+        if (exif.getAttribute(ExifInterface.TAG_LIGHT_SOURCE) == "0") {
+            clearTag(ExifInterface.TAG_LIGHT_SOURCE)
+        }
+
+        try {
+            exif.saveAttributes()
+        } catch (e: IOException) {
+            fullStripFallback(cleaned)
+        }
+
+        // Belt and braces: if the thumbnail still survived, strip fully.
+        if (ExifInterface(cleaned.absolutePath).hasThumbnail()) {
+            fullStripFallback(cleaned)
+            copyBackKeptTags(original, cleaned, template)
+        }
+    }
+
+    private val SYNTHESIZED_TAGS = setOf(
+        ExifInterface.TAG_IMAGE_WIDTH,
+        ExifInterface.TAG_IMAGE_LENGTH,
+        ExifInterface.TAG_LIGHT_SOURCE,
+    )
+
+    /**
+     * saveAttributes() re-embeds the thumbnail it parsed even after its
+     * pointer tags are cleared; the flag is private, so flip it via
+     * reflection (kept by proguard-rules.pro).
+     */
+    private fun disableThumbnailWriteback(exif: ExifInterface) {
+        try {
+            val field = ExifInterface::class.java.getDeclaredField("mHasThumbnail")
+            field.isAccessible = true
+            field.setBoolean(exif, false)
+        } catch (ignored: Exception) {
+            // Handled by the hasThumbnail() fallback after saving.
+        }
+    }
+
+    private fun fullStripFallback(cleaned: File) {
+        val fallback = File(cleaned.parentFile, cleaned.name + ".tmp")
+        MetadataStripper.strip(MetadataStripper.detectFormat(cleaned), cleaned, fallback)
+        fallback.copyTo(cleaned, overwrite = true)
+        fallback.delete()
+    }
+
+    /**
+     * Path B (template removes "other" metadata): everything was stripped;
+     * copy back only what the template keeps. Orientation is always restored.
+     */
+    private fun copyBackKeptTags(original: File, cleaned: File, template: Template) {
         val src = ExifInterface(original.absolutePath)
         val dst = ExifInterface(cleaned.absolutePath)
         var dirty = false
@@ -241,7 +310,7 @@ object ExifProcessor {
         when (template.gps) {
             RuleAction.KEEP -> ALL_TAGS.filter { it.startsWith("GPS") }.forEach(::copyTag)
             RuleAction.RANDOMIZE -> {
-                dst.setLatLong(Random.nextDouble(-55.0, 70.0), Random.nextDouble(-180.0, 180.0))
+                dst.setLatLong(randomLatitude(), randomLongitude())
                 dirty = true
             }
             RuleAction.REMOVE -> Unit
@@ -250,13 +319,7 @@ object ExifProcessor {
         when (template.dateTime) {
             RuleAction.KEEP -> DATE_TAGS.forEach(::copyTag)
             RuleAction.RANDOMIZE -> {
-                val past = System.currentTimeMillis() -
-                    Random.nextLong(0L, 20L * 365 * 24 * 60 * 60 * 1000)
-                val formatted = SimpleDateFormat("yyyy:MM:dd HH:mm:ss", Locale.US)
-                    .format(Date(past))
-                dst.setAttribute(ExifInterface.TAG_DATETIME, formatted)
-                dst.setAttribute(ExifInterface.TAG_DATETIME_ORIGINAL, formatted)
-                dst.setAttribute(ExifInterface.TAG_DATETIME_DIGITIZED, formatted)
+                setRandomDateTime(dst)
                 dirty = true
             }
             RuleAction.REMOVE -> Unit
@@ -266,18 +329,21 @@ object ExifProcessor {
             CAMERA_TAGS.forEach(::copyTag)
         }
 
-        if (template.orientation == RuleAction.KEEP) {
+        // Orientation is always restored ("0" is the parser default, not data)
+        val orientation = src.getAttribute(ExifInterface.TAG_ORIENTATION)
+        if (orientation != null && orientation != "0") {
             copyTag(ExifInterface.TAG_ORIENTATION)
         }
 
-        if (template.otherExif == RuleAction.KEEP) {
-            ALL_TAGS
-                .filterNot { it.startsWith("GPS") }
-                .filterNot { it in DATE_TAGS || it in CAMERA_TAGS || it in EXCLUDED_TAGS }
-                .forEach(::copyTag)
-        }
-
         if (dirty) {
+            // The destination was fully stripped, so anything present now was
+            // synthesized by ExifInterface while parsing; don't write it back.
+            for (tag in SYNTHESIZED_TAGS) {
+                try {
+                    dst.setAttribute(tag, null)
+                } catch (ignored: Exception) {
+                }
+            }
             try {
                 dst.saveAttributes()
             } catch (e: IOException) {
@@ -287,10 +353,21 @@ object ExifProcessor {
         }
     }
 
+    private fun randomLatitude() = Random.nextDouble(-55.0, 70.0)
+    private fun randomLongitude() = Random.nextDouble(-180.0, 180.0)
+
+    private fun setRandomDateTime(exif: ExifInterface) {
+        val past = System.currentTimeMillis() -
+            Random.nextLong(0L, 20L * 365 * 24 * 60 * 60 * 1000)
+        val formatted = SimpleDateFormat("yyyy:MM:dd HH:mm:ss", Locale.US).format(Date(past))
+        exif.setAttribute(ExifInterface.TAG_DATETIME, formatted)
+        exif.setAttribute(ExifInterface.TAG_DATETIME_ORIGINAL, formatted)
+        exif.setAttribute(ExifInterface.TAG_DATETIME_DIGITIZED, formatted)
+    }
+
     /**
-     * Cleans a media file on disk (used by the inspector to produce the
-     * "after" view with the exact same engine as the share flow).
-     * Returns false when the format is unsupported.
+     * Cleans a media file on disk — the single engine behind both the share
+     * flow and the inspector. Returns false when the format is unsupported.
      */
     internal fun cleanFile(source: File, dest: File, template: Template): Boolean {
         val format = MetadataStripper.detectFormat(source)
@@ -301,12 +378,24 @@ object ExifProcessor {
                 true
             }
             format != ImageFormat.UNSUPPORTED -> {
-                MetadataStripper.strip(format, source, dest)
-                if (template.needsRewrite) rewriteMetadata(source, dest, template)
+                val surgical = template.otherExif == RuleAction.KEEP
+                MetadataStripper.strip(format, source, dest, keepExif = surgical)
+                if (surgical) {
+                    editExifSurgically(source, dest, template)
+                } else if (template.needsRewrite || hasOrientation(source)) {
+                    copyBackKeptTags(source, dest, template)
+                }
                 true
             }
             else -> false
         }
+    }
+
+    private fun hasOrientation(source: File): Boolean = try {
+        (ExifInterface(source.absolutePath)
+            .getAttributeInt(ExifInterface.TAG_ORIENTATION, 0)) != 0
+    } catch (e: Exception) {
+        false
     }
 
     // -------------------------------------------------------------- helpers

@@ -68,7 +68,10 @@ object Mp4MetadataReader {
                     raf.seek(box.payloadStart + 4)
                     val bytes = ByteArray(minOf(length.toLong(), box.end - box.payloadStart - 4).toInt().coerceAtLeast(0))
                     raf.readFully(bytes)
-                    entries += MetaEntry(MetaCategory.LOCATION, "Location", String(bytes, Charsets.UTF_8))
+                    entries += MetaEntry(
+                        MetaCategory.LOCATION, "Location",
+                        formatLocation(String(bytes, Charsets.UTF_8)),
+                    )
                 }
                 else -> {
                     val category = Mp4Boxes.fourCcCategory(box.type)
@@ -108,7 +111,11 @@ object Mp4MetadataReader {
                 ?: "'${entry.type}'"
             forEachBox(raf, entry.payloadStart, entry.end) { data ->
                 if (data.type != "data") return@forEachBox
-                entries += MetaEntry(category, displayName, readDataValue(raf, data))
+                val value = readDataValue(raf, data)
+                entries += MetaEntry(
+                    category, displayName,
+                    if (category == MetaCategory.LOCATION) formatLocation(value) else value,
+                )
             }
         }
     }
@@ -135,6 +142,15 @@ object Mp4MetadataReader {
             }
             else -> "$length bytes"
         }
+    }
+
+    /** "+43.6641+015.6238/" (ISO 6709) → "43° 39′ 50.65″ N, 15° 37′ 25.82″ E" */
+    private fun formatLocation(raw: String): String {
+        val match = Regex("""([+-]\d+(?:\.\d+)?)([+-]\d+(?:\.\d+)?)""").find(raw.trim())
+            ?: return raw
+        val lat = match.groupValues[1].toDoubleOrNull() ?: return raw
+        val lon = match.groupValues[2].toDoubleOrNull() ?: return raw
+        return ImageMetadataReader.formatDms(lat, lon)
     }
 
     private fun readPrintable(raf: RandomAccessFile, box: Box): String {

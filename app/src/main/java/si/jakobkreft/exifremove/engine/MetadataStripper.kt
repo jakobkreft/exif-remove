@@ -37,15 +37,20 @@ object MetadataStripper {
 
     private val MP4_FIRST_BOXES = setOf("ftyp", "moov", "mdat", "free", "skip", "wide")
 
-    fun strip(format: ImageFormat, source: File, dest: File) {
+    /**
+     * Rewrites [source] into [dest] without metadata. With [keepExif] the
+     * EXIF block survives (for surgical per-tag editing afterwards) while
+     * XMP, IPTC, comments and other metadata are still dropped.
+     */
+    fun strip(format: ImageFormat, source: File, dest: File, keepExif: Boolean = false) {
         when (format) {
             ImageFormat.JPEG -> source.inputStream().buffered().use { ins ->
-                dest.outputStream().buffered().use { outs -> stripJpeg(ins, outs) }
+                dest.outputStream().buffered().use { outs -> stripJpeg(ins, outs, keepExif) }
             }
             ImageFormat.PNG -> source.inputStream().buffered().use { ins ->
-                dest.outputStream().buffered().use { outs -> stripPng(ins, outs) }
+                dest.outputStream().buffered().use { outs -> stripPng(ins, outs, keepExif) }
             }
-            ImageFormat.WEBP -> stripWebp(source, dest)
+            ImageFormat.WEBP -> stripWebp(source, dest, keepExif)
             ImageFormat.MP4 -> throw IOException("Videos are handled by Mp4Scrubber")
             ImageFormat.UNSUPPORTED -> throw IOException("Unsupported format")
         }
@@ -57,11 +62,12 @@ object MetadataStripper {
     private const val MARKER_EOI = 0xD9
     private const val MARKER_SOS = 0xDA
     private const val MARKER_APP0 = 0xE0
+    private const val MARKER_APP1 = 0xE1
     private const val MARKER_APP2 = 0xE2
     private const val MARKER_APP14 = 0xEE
     private const val MARKER_COM = 0xFE
 
-    private fun stripJpeg(ins: InputStream, outs: OutputStream) {
+    private fun stripJpeg(ins: InputStream, outs: OutputStream, keepExif: Boolean) {
         if (readByte(ins) != 0xFF || readByte(ins) != MARKER_SOI) {
             throw IOException("Not a JPEG file")
         }
@@ -96,7 +102,7 @@ object MetadataStripper {
                     if (length < 2) throw IOException("Corrupt JPEG: bad segment length")
                     val payload = ByteArray(length - 2)
                     readFully(ins, payload)
-                    if (keepJpegSegment(code, payload)) {
+                    if (keepJpegSegment(code, payload, keepExif)) {
                         outs.write(0xFF); outs.write(code)
                         outs.write(lenHi); outs.write(lenLo)
                         outs.write(payload)
@@ -106,14 +112,16 @@ object MetadataStripper {
         }
     }
 
-    private fun keepJpegSegment(code: Int, payload: ByteArray): Boolean = when {
+    private fun keepJpegSegment(code: Int, payload: ByteArray, keepExif: Boolean): Boolean = when {
         // APP0 (JFIF) — structural, no private data
         code == MARKER_APP0 -> true
+        // APP1 — the EXIF block itself (never XMP, which is also APP1)
+        code == MARKER_APP1 -> keepExif && payload.startsWithAscii("Exif\u0000\u0000")
         // APP2 — keep only ICC color profiles
         code == MARKER_APP2 -> payload.startsWithAscii("ICC_PROFILE\u0000")
         // APP14 — Adobe transform info, needed to decode some JPEGs correctly
         code == MARKER_APP14 -> payload.startsWithAscii("Adobe")
-        // All other APPn (Exif, XMP, IPTC, maker data, …) and comments: drop
+        // All other APPn (XMP, IPTC, maker data, …) and comments: drop
         code in 0xE1..0xEF || code == MARKER_COM -> false
         // Everything else (quantization/huffman tables, frame headers, …): keep
         else -> true
@@ -132,7 +140,7 @@ object MetadataStripper {
         "iCCP", "sBIT", "bKGD", "pHYs", "acTL", "fcTL", "fdAT"
     )
 
-    private fun stripPng(ins: InputStream, outs: OutputStream) {
+    private fun stripPng(ins: InputStream, outs: OutputStream, keepExif: Boolean) {
         val sig = ByteArray(8)
         readFully(ins, sig)
         if (!sig.contentEquals(PNG_SIGNATURE)) throw IOException("Not a PNG file")
@@ -151,7 +159,7 @@ object MetadataStripper {
             val crc = ByteArray(4)
             readFully(ins, crc)
 
-            if (type in PNG_KEEP) {
+            if (type in PNG_KEEP || (keepExif && type == "eXIf")) {
                 outs.write(lenBytes); outs.write(typeBytes); outs.write(data); outs.write(crc)
             }
             if (type == "IEND") return
@@ -160,7 +168,7 @@ object MetadataStripper {
 
     // ---------------------------------------------------------------- WebP
 
-    private fun stripWebp(source: File, dest: File) {
+    private fun stripWebp(source: File, dest: File, keepExif: Boolean) {
         source.inputStream().buffered().use { ins ->
             val header = ByteArray(12)
             readFully(ins, header)
@@ -177,14 +185,16 @@ object MetadataStripper {
                     if (size < 0) throw IOException("Corrupt WebP: bad chunk size")
                     val padded = size + (size and 1)
                     val type = String(fourcc, Charsets.US_ASCII)
-                    if (type == "EXIF" || type == "XMP ") {
+                    if ((type == "EXIF" && !keepExif) || type == "XMP ") {
                         skipFully(ins, padded.toLong())
                     } else {
                         val data = ByteArray(padded)
                         readFully(ins, data)
                         if (type == "VP8X" && size >= 1) {
-                            // Clear the EXIF (0x08) and XMP (0x04) flag bits
-                            data[0] = (data[0].toInt() and 0x08.inv() and 0x04.inv()).toByte()
+                            // Clear the XMP flag bit, and EXIF unless kept
+                            var flags = data[0].toInt() and 0x04.inv()
+                            if (!keepExif) flags = flags and 0x08.inv()
+                            data[0] = flags.toByte()
                         }
                         outs.write(fourcc); outs.write(sizeBytes); outs.write(data)
                     }

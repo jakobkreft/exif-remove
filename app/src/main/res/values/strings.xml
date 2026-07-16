@@ -20,7 +20,6 @@
 
     <!-- Built-in template names -->
     <string name="tpl_remove_everything">Remove everything</string>
-    <string name="tpl_keep_orientation">Keep orientation</string>
     <string name="tpl_remove_location_only">Remove location only</string>
     <string name="tpl_scramble_location_date">Scramble location &amp; date</string>
 
@@ -28,8 +27,6 @@
     <string name="cat_gps">Location (GPS)</string>
     <string name="cat_datetime">Date &amp; time</string>
     <string name="cat_camera">Camera, software &amp; author</string>
-    <string name="cat_orientation">Orientation</string>
-    <string name="cat_orientation_hint">Photos only</string>
     <string name="cat_other">Other metadata</string>
 
     <!-- Actions -->
@@ -43,7 +40,7 @@
     <string name="template_name_empty">Name can\'t be empty</string>
     <string name="save">Save</string>
     <string name="cancel">Cancel</string>
-    <string name="always_removed_note">Photos: XMP, IPTC, comments and embedded thumbnails are always removed; ICC color profiles are kept, so colors never change. Videos (MP4, MOV, 3GP): metadata is wiped in place and streams are never re-encoded.</string>
+    <string name="always_removed_note">Orientation is always kept, so photos never show up rotated. XMP, IPTC, comments and embedded thumbnails are always removed; ICC color profiles are kept, so colors never change. Videos (MP4, MOV, 3GP) are cleaned in place and streams are never re-encoded.</string>
     <string name="delete_template_title">Delete template?</string>
     <string name="delete_template_message">“%1$s” will be removed. Built-in templates can be brought back with “Restore default templates”.</string>
 
@@ -95,7 +92,8 @@
     <string name="inspector_summary">%1$d entries → %2$d would remain</string>
     <string name="status_removed">Removed</string>
     <string name="status_kept">Kept</string>
-    <string name="status_changed">Randomized</string>
+    <string name="status_randomized">Randomized</string>
+    <string name="status_modified">Modified</string>
     <string name="status_added">Added</string>
     <string name="inspector_unsupported_note">This format can\'t be cleaned in place. When shared, it is converted to a fresh JPEG, which removes all metadata.</string>
     <string name="inspector_no_metadata">No metadata found — this file is already clean.</string>

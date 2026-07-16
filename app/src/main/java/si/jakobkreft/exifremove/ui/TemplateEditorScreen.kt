@@ -50,7 +50,6 @@ fun TemplateEditorScreen(
     var gps by rememberSaveable { mutableStateOf(existing?.gps ?: RuleAction.REMOVE) }
     var dateTime by rememberSaveable { mutableStateOf(existing?.dateTime ?: RuleAction.REMOVE) }
     var cameraInfo by rememberSaveable { mutableStateOf(existing?.cameraInfo ?: RuleAction.REMOVE) }
-    var orientation by rememberSaveable { mutableStateOf(existing?.orientation ?: RuleAction.KEEP) }
     var otherExif by rememberSaveable { mutableStateOf(existing?.otherExif ?: RuleAction.REMOVE) }
     var showNameError by rememberSaveable { mutableStateOf(false) }
 
@@ -82,7 +81,6 @@ fun TemplateEditorScreen(
                                     gps = gps,
                                     dateTime = dateTime,
                                     cameraInfo = cameraInfo,
-                                    orientation = orientation,
                                     otherExif = otherExif,
                                     builtIn = existing?.builtIn ?: false,
                                 )
@@ -138,13 +136,6 @@ fun TemplateEditorScreen(
                 onChange = { cameraInfo = it },
             )
             CategoryRow(
-                label = stringResource(R.string.cat_orientation),
-                hint = stringResource(R.string.cat_orientation_hint),
-                value = orientation,
-                options = listOf(RuleAction.KEEP, RuleAction.REMOVE),
-                onChange = { orientation = it },
-            )
-            CategoryRow(
                 label = stringResource(R.string.cat_other),
                 value = otherExif,
                 options = listOf(RuleAction.KEEP, RuleAction.REMOVE),
@@ -182,17 +173,9 @@ private fun CategoryRow(
     value: RuleAction,
     options: List<RuleAction>,
     onChange: (RuleAction) -> Unit,
-    hint: String? = null,
 ) {
     Column {
         Text(label, style = MaterialTheme.typography.titleSmall)
-        if (hint != null) {
-            Text(
-                hint,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
         Spacer(Modifier.height(8.dp))
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
             options.forEachIndexed { index, option ->

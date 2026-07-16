@@ -37,6 +37,11 @@ android {
     buildFeatures {
         compose = true
     }
+    testOptions {
+        // ExifInterface is pure-Java parsing; stub android.util.Log etc.
+        // so the engine can be exercised in JVM unit tests.
+        unitTests.isReturnDefaultValues = true
+    }
     dependenciesInfo {
         // Reproducible builds for F-Droid: no Google-signed dependency metadata
         includeInApk = false
@@ -59,4 +64,5 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     debugImplementation(libs.androidx.compose.ui.tooling)
     testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
 }

@@ -13,3 +13,9 @@
 -keepclasseswithmembers class si.jakobkreft.exifremove.** {
     kotlinx.serialization.KSerializer serializer(...);
 }
+
+# The engine disables thumbnail write-back via reflection (see
+# ExifProcessor.disableThumbnailWriteback).
+-keepclassmembers class androidx.exifinterface.media.ExifInterface {
+    boolean mHasThumbnail;
+}
