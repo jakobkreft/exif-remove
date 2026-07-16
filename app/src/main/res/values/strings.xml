@@ -98,7 +98,7 @@
     <string name="inspector_unsupported_note">This format can\'t be cleaned in place. When shared, it is converted to a fresh JPEG, which removes all metadata.</string>
     <string name="inspector_no_metadata">No metadata found — this file is already clean.</string>
     <string name="inspector_could_not_read">Could not read this file.</string>
-    <string name="inspector_redaction_note">This file came from the gallery section of the picker, where Android hides location data from apps. To inspect the original, pick it by browsing device storage (e.g. DCIM) instead.</string>
+    <string name="inspector_redaction_note">Android hides location data in media files from apps without photo access. Grant photo and video access to EXIF Remove to inspect the original location.</string>
 
     <!-- Onboarding -->
     <string name="tutorial">Tutorial</string>

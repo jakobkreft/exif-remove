@@ -24,7 +24,7 @@ object Inspector {
             val temp = File.createTempFile("inspect", null, context.cacheDir)
             val cleaned = File.createTempFile("inspect_out", null, context.cacheDir)
             try {
-                context.contentResolver.openInputStream(uri)?.use { ins ->
+                MediaAccess.openStream(context, uri)?.use { ins ->
                     temp.outputStream().use { outs -> ins.copyTo(outs) }
                 } ?: return@withContext null
 

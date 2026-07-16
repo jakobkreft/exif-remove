@@ -8,6 +8,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -18,11 +19,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.launch
 import si.jakobkreft.exifremove.data.AppRepository
+import si.jakobkreft.exifremove.engine.MediaAccess
 import si.jakobkreft.exifremove.ui.AboutScreen
 import si.jakobkreft.exifremove.ui.InspectorScreen
 import si.jakobkreft.exifremove.ui.MainScreen
 import si.jakobkreft.exifremove.ui.OnboardingScreen
-import si.jakobkreft.exifremove.ui.OpenMultipleDocumentsInStorage
 import si.jakobkreft.exifremove.ui.SettingsScreen
 import si.jakobkreft.exifremove.ui.TemplateEditorScreen
 import si.jakobkreft.exifremove.ui.theme.ExifRemoveTheme
@@ -55,9 +56,8 @@ private fun AppNavigation() {
     var screen by rememberSaveable { mutableStateOf(SCREEN_HOME) }
     var editingTemplateId by rememberSaveable { mutableStateOf<String?>(null) }
 
-    // Storage-rooted SAF picker: media-provider paths would redact location.
     val pickMedia = rememberLauncherForActivityResult(
-        OpenMultipleDocumentsInStorage()
+        ActivityResultContracts.OpenMultipleDocuments()
     ) { uris: List<Uri> ->
         if (uris.isNotEmpty()) {
             val intent = Intent(context, ShareActivity::class.java).apply {
@@ -68,6 +68,12 @@ private fun AppNavigation() {
             context.startActivity(intent)
         }
     }
+
+    // Media-location access lifts Android's EXIF location redaction; the
+    // picker is launched from the permission callback either way.
+    val mediaPermissions = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { pickMedia.launch(arrayOf("image/*", "video/*")) }
 
     var replayTutorial by rememberSaveable { mutableStateOf(false) }
 
@@ -86,7 +92,15 @@ private fun AppNavigation() {
     when (screen) {
         SCREEN_HOME -> MainScreen(
             state = appState,
-            onCleanImages = { pickMedia.launch(arrayOf("image/*", "video/*")) },
+            onCleanImages = {
+                if (MediaAccess.hasFullAccess(context) ||
+                    MediaAccess.requiredPermissions().isEmpty()
+                ) {
+                    pickMedia.launch(arrayOf("image/*", "video/*"))
+                } else {
+                    mediaPermissions.launch(MediaAccess.requiredPermissions())
+                }
+            },
             onNewTemplate = {
                 editingTemplateId = null
                 screen = SCREEN_EDITOR

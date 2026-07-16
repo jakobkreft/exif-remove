@@ -57,7 +57,7 @@ object ExifProcessor {
         val temp = File.createTempFile("original", null, context.cacheDir)
         try {
             try {
-                context.contentResolver.openInputStream(uri)?.use { ins ->
+                MediaAccess.openStream(context, uri)?.use { ins ->
                     temp.outputStream().use { outs -> ins.copyTo(outs) }
                 } ?: return ProcessedImage(null, originalName ?: "?", "", ProcessError.UNREADABLE)
             } catch (e: Exception) {

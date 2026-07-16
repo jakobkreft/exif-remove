@@ -2,6 +2,7 @@ package si.jakobkreft.exifremove.ui
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -62,6 +63,7 @@ import si.jakobkreft.exifremove.data.AppState
 import si.jakobkreft.exifremove.data.RuleAction
 import si.jakobkreft.exifremove.data.Template
 import si.jakobkreft.exifremove.engine.Inspection
+import si.jakobkreft.exifremove.engine.MediaAccess
 import si.jakobkreft.exifremove.engine.Inspector
 import si.jakobkreft.exifremove.engine.MetaCategory
 import si.jakobkreft.exifremove.engine.MetaEntry
@@ -93,14 +95,28 @@ fun InspectorScreen(
     val selectedTemplate = state.templates.firstOrNull { it.id == selectedTemplateId }
         ?: state.defaultTemplate
 
-    // Storage-rooted SAF picker: media-provider paths would redact GPS
-    // coordinates, which is exactly what this screen exists to reveal.
     val picker = rememberLauncherForActivityResult(
-        OpenDocumentInStorage()
+        ActivityResultContracts.OpenDocument()
     ) { uri ->
         if (uri != null) {
             pickedUri = uri
             reloadKey++
+        }
+    }
+
+    // Media-location access lifts Android's EXIF location redaction; the
+    // picker is launched from the permission callback either way.
+    val mediaPermissions = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { picker.launch(arrayOf("image/*", "video/*")) }
+
+    fun pick() {
+        if (MediaAccess.hasFullAccess(context) ||
+            MediaAccess.requiredPermissions().isEmpty()
+        ) {
+            picker.launch(arrayOf("image/*", "video/*"))
+        } else {
+            mediaPermissions.launch(MediaAccess.requiredPermissions())
         }
     }
 
@@ -125,9 +141,7 @@ fun InspectorScreen(
                 },
                 actions = {
                     if (pickedUri != null) {
-                        IconButton(onClick = {
-                            picker.launch(arrayOf("image/*", "video/*"))
-                        }) {
+                        IconButton(onClick = { pick() }) {
                             Icon(Icons.Filled.Image, stringResource(R.string.pick_another))
                         }
                     }
@@ -159,9 +173,7 @@ fun InspectorScreen(
                     style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.padding(bottom = 24.dp),
                 )
-                Button(onClick = {
-                    picker.launch(arrayOf("image/*", "video/*"))
-                }) { Text(stringResource(R.string.pick_file)) }
+                Button(onClick = { pick() }) { Text(stringResource(R.string.pick_file)) }
             }
 
             loading -> Box(
@@ -178,7 +190,8 @@ fun InspectorScreen(
                     selectedTemplateId = selectedTemplate.id,
                     onTemplateSelected = { selectedTemplateId = it },
                     padding = padding,
-                    redactedSource = pickedUri?.authority in REDACTING_AUTHORITIES,
+                    redactedSource = pickedUri?.authority in MediaAccess.REDACTING_AUTHORITIES &&
+                        !MediaAccess.hasFullAccess(context),
                 )
             }
         }
