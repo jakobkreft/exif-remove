@@ -8,7 +8,6 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -23,6 +22,7 @@ import si.jakobkreft.exifremove.ui.AboutScreen
 import si.jakobkreft.exifremove.ui.InspectorScreen
 import si.jakobkreft.exifremove.ui.MainScreen
 import si.jakobkreft.exifremove.ui.OnboardingScreen
+import si.jakobkreft.exifremove.ui.OpenMultipleDocumentsInStorage
 import si.jakobkreft.exifremove.ui.SettingsScreen
 import si.jakobkreft.exifremove.ui.TemplateEditorScreen
 import si.jakobkreft.exifremove.ui.theme.ExifRemoveTheme
@@ -55,10 +55,9 @@ private fun AppNavigation() {
     var screen by rememberSaveable { mutableStateOf(SCREEN_HOME) }
     var editingTemplateId by rememberSaveable { mutableStateOf<String?>(null) }
 
-    // SAF document picker: unlike the photo picker, it returns the raw file,
-    // so EXIF location is not redacted by the system.
+    // Storage-rooted SAF picker: media-provider paths would redact location.
     val pickMedia = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenMultipleDocuments()
+        OpenMultipleDocumentsInStorage()
     ) { uris: List<Uri> ->
         if (uris.isNotEmpty()) {
             val intent = Intent(context, ShareActivity::class.java).apply {

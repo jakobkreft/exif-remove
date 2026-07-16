@@ -105,6 +105,7 @@ object ImageMetadataReader {
                 tag == ExifInterface.TAG_GPS_LATITUDE ||
                     tag == ExifInterface.TAG_GPS_LONGITUDE -> formatTriplet(value)
                 category == MetaCategory.LOCATION -> formatRational(value)
+                category == MetaCategory.DATE -> formatExifDate(value)
                 else -> value
             }
             entries += MetaEntry(category, prettify(tag), display.take(120))
@@ -126,6 +127,13 @@ object ImageMetadataReader {
             Locale.US, "%d° %d′ %.2f″ %c",
             degrees, minutes, seconds, if (value >= 0) positive else negative,
         )
+    }
+
+    /** "2026:07:16 12:23:53" (EXIF style) → "2026-07-16 12:23:53" */
+    private fun formatExifDate(value: String): String {
+        val match = Regex("""^(\d{4}):(\d{2}):(\d{2})(.*)$""").find(value) ?: return value
+        val (year, month, day, rest) = match.destructured
+        return "$year-$month-$day$rest"
     }
 
     /** "46/1,4/1,5859/1000" (EXIF DMS triplet) → "46° 4′ 5.86″" */

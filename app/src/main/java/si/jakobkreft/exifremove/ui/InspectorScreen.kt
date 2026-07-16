@@ -2,7 +2,6 @@ package si.jakobkreft.exifremove.ui
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -94,10 +93,10 @@ fun InspectorScreen(
     val selectedTemplate = state.templates.firstOrNull { it.id == selectedTemplateId }
         ?: state.defaultTemplate
 
-    // SAF picker: the photo picker would redact GPS coordinates, which is
-    // exactly what this screen exists to reveal.
+    // Storage-rooted SAF picker: media-provider paths would redact GPS
+    // coordinates, which is exactly what this screen exists to reveal.
     val picker = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocument()
+        OpenDocumentInStorage()
     ) { uri ->
         if (uri != null) {
             pickedUri = uri
@@ -179,6 +178,7 @@ fun InspectorScreen(
                     selectedTemplateId = selectedTemplate.id,
                     onTemplateSelected = { selectedTemplateId = it },
                     padding = padding,
+                    redactedSource = pickedUri?.authority in REDACTING_AUTHORITIES,
                 )
             }
         }
@@ -192,6 +192,7 @@ private fun InspectionResult(
     selectedTemplateId: String,
     onTemplateSelected: (String) -> Unit,
     padding: PaddingValues,
+    redactedSource: Boolean,
 ) {
     val template = state.templates.firstOrNull { it.id == selectedTemplateId }
         ?: state.defaultTemplate
@@ -278,6 +279,23 @@ private fun InspectionResult(
                             )
                         }
                     }
+                }
+            }
+        }
+        if (redactedSource) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    ),
+                ) {
+                    Text(
+                        stringResource(R.string.inspector_redaction_note),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.padding(16.dp),
+                    )
                 }
             }
         }
