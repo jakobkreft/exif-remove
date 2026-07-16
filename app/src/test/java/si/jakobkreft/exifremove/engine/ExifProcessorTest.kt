@@ -40,6 +40,8 @@ class ExifProcessorTest {
         ExifInterface(photo.absolutePath).apply {
             setLatLong(43.66407, 15.62384)
             setAttribute(ExifInterface.TAG_GPS_ALTITUDE, "41/1")
+            setAttribute(ExifInterface.TAG_GPS_DATESTAMP, "2026:07:16")
+            setAttribute(ExifInterface.TAG_GPS_TIMESTAMP, "07:21:46")
             setAttribute(ExifInterface.TAG_DATETIME_ORIGINAL, "2026:07:16 09:22:50")
             setAttribute(ExifInterface.TAG_OFFSET_TIME_ORIGINAL, "+02:00")
             setAttribute(ExifInterface.TAG_MAKE, "Google")
@@ -82,6 +84,8 @@ class ExifProcessorTest {
         )
         assertNull(exif.latLong)
         assertNull(exif.getAttribute(ExifInterface.TAG_GPS_ALTITUDE))
+        // GPS date/time stamps are time information: the KEEP date rule keeps them
+        assertEquals("2026:07:16", exif.getAttribute(ExifInterface.TAG_GPS_DATESTAMP))
         // Kept values are byte-identical, not re-encoded
         assertEquals(
             original.getAttribute(ExifInterface.TAG_EXPOSURE_TIME),
@@ -91,6 +95,22 @@ class ExifProcessorTest {
         assertEquals("+02:00", exif.getAttribute(ExifInterface.TAG_OFFSET_TIME_ORIGINAL))
         assertEquals("Pixel 10 Pro", exif.getAttribute(ExifInterface.TAG_MODEL))
         assertEquals("6", exif.getAttribute(ExifInterface.TAG_ORIENTATION))
+    }
+
+    @Test
+    fun `keep location only still removes gps date and time stamps`() {
+        val exif = clean(
+            Template(
+                id = "t", name = "t",
+                gps = RuleAction.KEEP,
+                dateTime = RuleAction.REMOVE,
+                cameraInfo = RuleAction.REMOVE,
+                otherExif = RuleAction.REMOVE,
+            )
+        )
+        assertNotNull(exif.latLong)
+        assertNull(exif.getAttribute(ExifInterface.TAG_GPS_DATESTAMP))
+        assertNull(exif.getAttribute(ExifInterface.TAG_GPS_TIMESTAMP))
     }
 
     @Test
@@ -108,8 +128,9 @@ class ExifProcessorTest {
         val date = exif.getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL)
         assertNotNull(date)
         assertFalse(date == "2026:07:16 09:22:50")
-        // Timezone offset must not survive a randomized date
+        // Timezone offset and GPS fix time must not survive a randomized date
         assertNull(exif.getAttribute(ExifInterface.TAG_OFFSET_TIME_ORIGINAL))
+        assertNull(exif.getAttribute(ExifInterface.TAG_GPS_TIMESTAMP))
         assertNull(exif.getAttribute(ExifInterface.TAG_MAKE))
         assertEquals("6", exif.getAttribute(ExifInterface.TAG_ORIENTATION))
     }

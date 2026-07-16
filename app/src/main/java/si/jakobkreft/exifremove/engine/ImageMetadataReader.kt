@@ -95,8 +95,8 @@ object ImageMetadataReader {
                 continue
             }
             val category = when {
-                tag.startsWith("GPS") -> MetaCategory.LOCATION
                 tag in ExifProcessor.DATE_TAGS -> MetaCategory.DATE
+                tag.startsWith("GPS") -> MetaCategory.LOCATION
                 tag in ExifProcessor.CAMERA_TAGS -> MetaCategory.CAMERA
                 tag == ExifInterface.TAG_ORIENTATION -> MetaCategory.ORIENTATION
                 else -> MetaCategory.OTHER

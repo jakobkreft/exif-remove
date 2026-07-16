@@ -162,7 +162,15 @@ object ExifProcessor {
         ExifInterface.TAG_OFFSET_TIME,
         ExifInterface.TAG_OFFSET_TIME_ORIGINAL,
         ExifInterface.TAG_OFFSET_TIME_DIGITIZED,
+        // The GPS fix moment is time information: governed by the date rule,
+        // not the location rule.
+        ExifInterface.TAG_GPS_DATESTAMP,
+        ExifInterface.TAG_GPS_TIMESTAMP,
     )
+
+    /** GPS tags that carry location (GPS time/date belong to DATE_TAGS). */
+    private fun isLocationTag(tag: String): Boolean =
+        tag.startsWith("GPS") && tag !in DATE_TAGS
 
     internal val CAMERA_TAGS = setOf(
         ExifInterface.TAG_MAKE,
@@ -208,9 +216,9 @@ object ExifProcessor {
 
         when (template.gps) {
             RuleAction.KEEP -> Unit
-            RuleAction.REMOVE -> ALL_TAGS.filter { it.startsWith("GPS") }.forEach(::clearTag)
+            RuleAction.REMOVE -> ALL_TAGS.filter(::isLocationTag).forEach(::clearTag)
             RuleAction.RANDOMIZE -> {
-                ALL_TAGS.filter { it.startsWith("GPS") }.forEach(::clearTag)
+                ALL_TAGS.filter(::isLocationTag).forEach(::clearTag)
                 exif.setLatLong(randomLatitude(), randomLongitude())
             }
         }
@@ -308,7 +316,7 @@ object ExifProcessor {
         }
 
         when (template.gps) {
-            RuleAction.KEEP -> ALL_TAGS.filter { it.startsWith("GPS") }.forEach(::copyTag)
+            RuleAction.KEEP -> ALL_TAGS.filter(::isLocationTag).forEach(::copyTag)
             RuleAction.RANDOMIZE -> {
                 dst.setLatLong(randomLatitude(), randomLongitude())
                 dirty = true
