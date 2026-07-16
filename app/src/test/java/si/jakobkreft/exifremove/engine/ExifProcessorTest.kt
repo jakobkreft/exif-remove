@@ -115,6 +115,33 @@ class ExifProcessorTest {
     }
 
     @Test
+    fun `scramble writes a location into a photo that had none`() {
+        val noGps = tmp.newFile("nogps.jpg")
+        javaClass.classLoader!!.getResourceAsStream("tiny.jpg")!!.use { ins ->
+            noGps.outputStream().use { outs -> ins.copyTo(outs) }
+        }
+        ExifInterface(noGps.absolutePath).apply {
+            // Junk GPS block without coordinates, as some cameras write
+            setAttribute(ExifInterface.TAG_GPS_TIMESTAMP, "00:00:00")
+            setAttribute(ExifInterface.TAG_DATETIME_ORIGINAL, "2026:07:16 12:23:53")
+            saveAttributes()
+        }
+        val out = tmp.newFile("nogps_cleaned.jpg")
+        ExifProcessor.cleanFile(
+            noGps, out,
+            Template(
+                id = "t", name = "t",
+                gps = RuleAction.RANDOMIZE,
+                dateTime = RuleAction.RANDOMIZE,
+            ),
+        )
+        val entries = ImageMetadataReader.read(out)
+        // The new random location must be visible to the viewer
+        assertTrue(entries.any { it.name == "GPS position" && it.value.contains("″") })
+        assertTrue(entries.none { it.name == "GPS Time Stamp" })
+    }
+
+    @Test
     fun `surgical clean does not resurrect parser defaults`() {
         val out = tmp.newFile("cleaned2.jpg")
         ExifProcessor.cleanFile(

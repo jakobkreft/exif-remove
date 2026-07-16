@@ -94,7 +94,8 @@ object ImageMetadataReader {
                 tag == ExifInterface.TAG_ORIENTATION -> MetaCategory.ORIENTATION
                 else -> MetaCategory.OTHER
             }
-            entries += MetaEntry(category, prettify(tag), value.take(120))
+            val display = if (category == MetaCategory.LOCATION) formatRational(value) else value
+            entries += MetaEntry(category, prettify(tag), display.take(120))
         }
         return entries
     }
@@ -113,6 +114,20 @@ object ImageMetadataReader {
             Locale.US, "%d° %d′ %.2f″ %c",
             degrees, minutes, seconds, if (value >= 0) positive else negative,
         )
+    }
+
+    /** "126/1" → "126", "1234/100" → "12.34"; anything else passes through. */
+    private fun formatRational(value: String): String {
+        val match = Regex("""^(\d+)/(\d+)$""").find(value.trim()) ?: return value
+        val numerator = match.groupValues[1].toLongOrNull() ?: return value
+        val denominator = match.groupValues[2].toLongOrNull() ?: return value
+        if (denominator == 0L) return value
+        val result = numerator.toDouble() / denominator
+        return if (result == result.toLong().toDouble()) {
+            result.toLong().toString()
+        } else {
+            String.format(Locale.US, "%.2f", result)
+        }
     }
 
     /** "SubSecTimeOriginal" → "Sub Sec Time Original", "GPSLatitude" → "GPS Latitude" */

@@ -68,7 +68,7 @@ import si.jakobkreft.exifremove.engine.Inspector
 import si.jakobkreft.exifremove.engine.MetaCategory
 import si.jakobkreft.exifremove.engine.MetaEntry
 
-private enum class RowStatus { REMOVED, KEPT, CHANGED }
+private enum class RowStatus { REMOVED, KEPT, CHANGED, ADDED }
 
 private class CompareRow(
     val entry: MetaEntry,
@@ -388,6 +388,13 @@ private fun StatusChip(row: CompareRow) {
             MaterialTheme.colorScheme.tertiaryContainer,
             MaterialTheme.colorScheme.onTertiaryContainer,
         )
+        RowStatus.ADDED -> Triple(
+            stringResource(
+                if (row.randomized) R.string.status_randomized else R.string.status_added
+            ),
+            MaterialTheme.colorScheme.tertiaryContainer,
+            MaterialTheme.colorScheme.onTertiaryContainer,
+        )
     }
     Surface(
         color = container,
@@ -407,7 +414,8 @@ private fun buildRows(result: Inspection, template: Template): List<CompareRow> 
         CompareRow(it, RowStatus.REMOVED, null)
     }
     val afterByName = after.groupBy { it.name }
-    return result.before.map { entry ->
+    val beforeNames = result.before.map { it.name }.toSet()
+    val rows = result.before.map { entry ->
         val match = afterByName[entry.name]?.firstOrNull()
         val randomized = template.ruleFor(entry.category) == RuleAction.RANDOMIZE
         when {
@@ -417,6 +425,15 @@ private fun buildRows(result: Inspection, template: Template): List<CompareRow> 
             else -> CompareRow(entry, RowStatus.CHANGED, match.value, randomized)
         }
     }
+    // Entries that only exist after cleaning (e.g. a scrambled location
+    // written into a file that had none).
+    val added = after.filter { it.name !in beforeNames && it.value.isNotBlank() }.map { entry ->
+        CompareRow(
+            entry, RowStatus.ADDED, null,
+            randomized = template.ruleFor(entry.category) == RuleAction.RANDOMIZE,
+        )
+    }
+    return rows + added
 }
 
 private fun Template.ruleFor(category: MetaCategory): RuleAction = when (category) {
