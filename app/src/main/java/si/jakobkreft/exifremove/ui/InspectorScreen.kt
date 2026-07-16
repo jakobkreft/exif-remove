@@ -2,7 +2,6 @@ package si.jakobkreft.exifremove.ui
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -95,8 +94,10 @@ fun InspectorScreen(
     val selectedTemplate = state.templates.firstOrNull { it.id == selectedTemplateId }
         ?: state.defaultTemplate
 
+    // SAF picker: the photo picker would redact GPS coordinates, which is
+    // exactly what this screen exists to reveal.
     val picker = rememberLauncherForActivityResult(
-        ActivityResultContracts.PickVisualMedia()
+        ActivityResultContracts.OpenDocument()
     ) { uri ->
         if (uri != null) {
             pickedUri = uri
@@ -126,11 +127,7 @@ fun InspectorScreen(
                 actions = {
                     if (pickedUri != null) {
                         IconButton(onClick = {
-                            picker.launch(
-                                PickVisualMediaRequest(
-                                    ActivityResultContracts.PickVisualMedia.ImageAndVideo
-                                )
-                            )
+                            picker.launch(arrayOf("image/*", "video/*"))
                         }) {
                             Icon(Icons.Filled.Image, stringResource(R.string.pick_another))
                         }
@@ -164,11 +161,7 @@ fun InspectorScreen(
                     modifier = Modifier.padding(bottom = 24.dp),
                 )
                 Button(onClick = {
-                    picker.launch(
-                        PickVisualMediaRequest(
-                            ActivityResultContracts.PickVisualMedia.ImageAndVideo
-                        )
-                    )
+                    picker.launch(arrayOf("image/*", "video/*"))
                 }) { Text(stringResource(R.string.pick_file)) }
             }
 

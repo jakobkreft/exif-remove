@@ -43,38 +43,45 @@ object ImageMetadataReader {
         ExifInterface.TAG_GPS_VERSION_ID,
     )
 
-    /** GPS tags replaced by the formatted "GPS position"/"GPS altitude" rows. */
-    private val FORMATTED_GPS_TAGS = setOf(
-        ExifInterface.TAG_GPS_LATITUDE,
-        ExifInterface.TAG_GPS_LATITUDE_REF,
-        ExifInterface.TAG_GPS_LONGITUDE,
-        ExifInterface.TAG_GPS_LONGITUDE_REF,
-        ExifInterface.TAG_GPS_ALTITUDE,
-        ExifInterface.TAG_GPS_ALTITUDE_REF,
-    )
-
     fun read(file: File): List<MetaEntry> {
         val exif = ExifInterface(file.absolutePath)
         val entries = mutableListOf<MetaEntry>()
 
-        exif.latLong?.let { coords ->
+        val coords = exif.latLong
+        val positionShown = coords != null
+        if (coords != null) {
             entries += MetaEntry(
                 MetaCategory.LOCATION,
                 "GPS position",
                 formatDms(coords[0], coords[1]),
             )
-            val altitude = exif.getAltitude(Double.NaN)
-            if (!altitude.isNaN()) {
-                entries += MetaEntry(
-                    MetaCategory.LOCATION,
-                    "GPS altitude",
-                    String.format(Locale.US, "%.1f m", altitude),
-                )
+        }
+        val altitude = exif.getAltitude(Double.NaN)
+        val altitudeShown = !altitude.isNaN()
+        if (altitudeShown) {
+            entries += MetaEntry(
+                MetaCategory.LOCATION,
+                "GPS altitude",
+                String.format(Locale.US, "%.1f m", altitude),
+            )
+        }
+        // Raw coordinate tags are hidden only when the formatted row above
+        // replaced them; otherwise they must stay visible.
+        val hiddenGps = buildSet {
+            if (positionShown) {
+                add(ExifInterface.TAG_GPS_LATITUDE)
+                add(ExifInterface.TAG_GPS_LATITUDE_REF)
+                add(ExifInterface.TAG_GPS_LONGITUDE)
+                add(ExifInterface.TAG_GPS_LONGITUDE_REF)
+            }
+            if (altitudeShown) {
+                add(ExifInterface.TAG_GPS_ALTITUDE)
+                add(ExifInterface.TAG_GPS_ALTITUDE_REF)
             }
         }
 
         for (tag in ExifProcessor.ALL_TAGS) {
-            if (tag in HIDDEN_TAGS || tag in FORMATTED_GPS_TAGS) continue
+            if (tag in HIDDEN_TAGS || tag in hiddenGps) continue
             val value = try {
                 exif.getAttribute(tag) ?: continue
             } catch (e: Exception) {
@@ -94,7 +101,12 @@ object ImageMetadataReader {
                 tag == ExifInterface.TAG_ORIENTATION -> MetaCategory.ORIENTATION
                 else -> MetaCategory.OTHER
             }
-            val display = if (category == MetaCategory.LOCATION) formatRational(value) else value
+            val display = when {
+                tag == ExifInterface.TAG_GPS_LATITUDE ||
+                    tag == ExifInterface.TAG_GPS_LONGITUDE -> formatTriplet(value)
+                category == MetaCategory.LOCATION -> formatRational(value)
+                else -> value
+            }
             entries += MetaEntry(category, prettify(tag), display.take(120))
         }
         return entries
@@ -113,6 +125,24 @@ object ImageMetadataReader {
         return String.format(
             Locale.US, "%d° %d′ %.2f″ %c",
             degrees, minutes, seconds, if (value >= 0) positive else negative,
+        )
+    }
+
+    /** "46/1,4/1,5859/1000" (EXIF DMS triplet) → "46° 4′ 5.86″" */
+    private fun formatTriplet(value: String): String {
+        val parts = value.split(",")
+        if (parts.size != 3) return value
+        val numbers = parts.map { part ->
+            val pieces = part.trim().split("/")
+            if (pieces.size != 2) return value
+            val numerator = pieces[0].toDoubleOrNull() ?: return value
+            val denominator = pieces[1].toDoubleOrNull() ?: return value
+            if (denominator == 0.0) return value
+            numerator / denominator
+        }
+        return String.format(
+            Locale.US, "%.0f° %.0f′ %.2f″",
+            numbers[0], numbers[1], numbers[2],
         )
     }
 

@@ -8,7 +8,6 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -56,8 +55,10 @@ private fun AppNavigation() {
     var screen by rememberSaveable { mutableStateOf(SCREEN_HOME) }
     var editingTemplateId by rememberSaveable { mutableStateOf<String?>(null) }
 
+    // SAF document picker: unlike the photo picker, it returns the raw file,
+    // so EXIF location is not redacted by the system.
     val pickMedia = rememberLauncherForActivityResult(
-        ActivityResultContracts.PickMultipleVisualMedia()
+        ActivityResultContracts.OpenMultipleDocuments()
     ) { uris: List<Uri> ->
         if (uris.isNotEmpty()) {
             val intent = Intent(context, ShareActivity::class.java).apply {
@@ -86,13 +87,7 @@ private fun AppNavigation() {
     when (screen) {
         SCREEN_HOME -> MainScreen(
             state = appState,
-            onCleanImages = {
-                pickMedia.launch(
-                    PickVisualMediaRequest(
-                        ActivityResultContracts.PickVisualMedia.ImageAndVideo
-                    )
-                )
-            },
+            onCleanImages = { pickMedia.launch(arrayOf("image/*", "video/*")) },
             onNewTemplate = {
                 editingTemplateId = null
                 screen = SCREEN_EDITOR
