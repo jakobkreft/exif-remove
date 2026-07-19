@@ -10,3 +10,4 @@ build/
 *.apk
 *.aab
 *.keystore
+/app/debug/

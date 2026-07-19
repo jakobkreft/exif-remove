@@ -1,5 +1,7 @@
 # EXIF Remove
 
+![EXIF Remove](fastlane/metadata/android/en-US/images/featureGraphic.png)
+
 Remove EXIF and other metadata from photos and videos before you share them.
 
 EXIF Remove registers itself as a share target: share one or more photos or
@@ -35,6 +37,16 @@ copies onward. No network access, no tracking, free software.
 - Save cleaned copies to the gallery, or skip the picker entirely and
   clean with your default template in one tap
 - Material 3 UI with dynamic colors, light/dark theme
+
+## Screenshots
+
+<p>
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1.png" width="18%" alt="Home screen with cleaning templates" />
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2.png" width="18%" alt="Choosing a template when sharing files" />
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3.png" width="18%" alt="Cleaned files ready to share or save" />
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/4.png" width="18%" alt="Metadata viewer previewing a full clean" />
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/5.png" width="18%" alt="Metadata viewer previewing scrambled location and date" />
+</p>
 
 ## Building
 
