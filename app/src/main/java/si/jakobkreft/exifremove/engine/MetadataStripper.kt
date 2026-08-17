@@ -7,7 +7,7 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.io.RandomAccessFile
 
-enum class ImageFormat { JPEG, PNG, WEBP, MP4, UNSUPPORTED }
+enum class ImageFormat { JPEG, PNG, WEBP, MP4, HEIF, UNSUPPORTED }
 
 /**
  * Rewrites image containers while dropping every metadata-carrying segment.
@@ -18,10 +18,7 @@ object MetadataStripper {
 
     fun detectFormat(file: File): ImageFormat {
         val header = ByteArray(12)
-        file.inputStream().use { ins ->
-            val read = ins.read(header)
-            if (read < 12) return ImageFormat.UNSUPPORTED
-        }
+        file.inputStream().use { ins -> if (!tryReadFully(ins, header)) return ImageFormat.UNSUPPORTED }
         return when {
             header[0] == 0xFF.toByte() && header[1] == 0xD8.toByte() -> ImageFormat.JPEG
             header[0] == 0x89.toByte() && header[1] == 'P'.code.toByte() &&
@@ -30,12 +27,55 @@ object MetadataStripper {
                 header[2] == 'F'.code.toByte() && header[3] == 'F'.code.toByte() &&
                 header[8] == 'W'.code.toByte() && header[9] == 'E'.code.toByte() &&
                 header[10] == 'B'.code.toByte() && header[11] == 'P'.code.toByte() -> ImageFormat.WEBP
-            String(header, 4, 4, Charsets.US_ASCII) in MP4_FIRST_BOXES -> ImageFormat.MP4
+            String(header, 4, 4, Charsets.US_ASCII) in MP4_FIRST_BOXES ->
+                if (isHeif(file)) ImageFormat.HEIF else ImageFormat.MP4
             else -> ImageFormat.UNSUPPORTED
         }
     }
 
     private val MP4_FIRST_BOXES = setOf("ftyp", "moov", "mdat", "free", "skip", "wide")
+
+    /**
+     * HEIC/AVIF share the ISO BMFF container with MP4, so the magic bytes
+     * alone cannot tell them apart. A still-image HEIF advertises an image
+     * brand in `ftyp` and stores its metadata in a top-level `meta` box
+     * instead of a `moov` — nothing the video scrubber knows how to touch,
+     * which is why these must never be mistaken for videos.
+     */
+    private val HEIF_BRANDS = setOf(
+        "heic", "heix", "heim", "heis", "hevc", "hevx", "hevm", "hevs",
+        "mif1", "mif2", "msf1", "miaf", "avif", "avis", "MiHE", "MiHB",
+    )
+
+    private fun isHeif(file: File): Boolean = try {
+        var heifBrand = false
+        var hasMoov = false
+        var hasMeta = false
+        RandomAccessFile(file, "r").use { raf ->
+            Mp4Boxes.forEachBox(raf, 0, raf.length()) { box ->
+                when (box.type) {
+                    "ftyp" -> {
+                        val brands = ByteArray(minOf(box.end - box.payloadStart, 64L).toInt())
+                        raf.seek(box.payloadStart)
+                        raf.readFully(brands)
+                        // major brand, 4 bytes of minor version, then compatible brands
+                        for (offset in brands.indices step 4) {
+                            if (offset == 4 || offset + 4 > brands.size) continue
+                            if (String(brands, offset, 4, Charsets.ISO_8859_1) in HEIF_BRANDS) {
+                                heifBrand = true
+                            }
+                        }
+                    }
+                    "moov" -> hasMoov = true
+                    "meta" -> hasMeta = true
+                    else -> Unit
+                }
+            }
+        }
+        heifBrand && hasMeta && !hasMoov
+    } catch (e: Exception) {
+        false
+    }
 
     /**
      * Rewrites [source] into [dest] without metadata. With [keepExif] the
@@ -52,6 +92,7 @@ object MetadataStripper {
             }
             ImageFormat.WEBP -> stripWebp(source, dest, keepExif)
             ImageFormat.MP4 -> throw IOException("Videos are handled by Mp4Scrubber")
+            ImageFormat.HEIF -> throw IOException("HEIF is re-encoded, not stripped in place")
             ImageFormat.UNSUPPORTED -> throw IOException("Unsupported format")
         }
     }
@@ -86,9 +127,13 @@ object MetadataStripper {
                     return
                 }
                 code == MARKER_SOS -> {
-                    // Scan header, then entropy-coded data until EOF: copy verbatim.
+                    // Scan header + entropy-coded data, copied verbatim but only
+                    // as far as the end-of-image marker. Anything appended after
+                    // it — a motion photo's MP4, an Ultra HDR gain map, a vendor
+                    // debug trailer — is not image data and carries a full copy
+                    // of the original metadata, so it must not be carried over.
                     outs.write(0xFF); outs.write(code)
-                    ins.copyTo(outs)
+                    copyScanUntilEoi(ins, outs)
                     return
                 }
                 code == 0x01 || code in 0xD0..0xD7 -> {
@@ -102,29 +147,77 @@ object MetadataStripper {
                     if (length < 2) throw IOException("Corrupt JPEG: bad segment length")
                     val payload = ByteArray(length - 2)
                     readFully(ins, payload)
-                    if (keepJpegSegment(code, payload, keepExif)) {
+                    val kept = sanitizeJpegSegment(code, payload, keepExif)
+                    if (kept != null) {
+                        val keptLength = kept.size + 2
                         outs.write(0xFF); outs.write(code)
-                        outs.write(lenHi); outs.write(lenLo)
-                        outs.write(payload)
+                        outs.write((keptLength shr 8) and 0xFF); outs.write(keptLength and 0xFF)
+                        outs.write(kept)
                     }
                 }
             }
         }
     }
 
-    private fun keepJpegSegment(code: Int, payload: ByteArray, keepExif: Boolean): Boolean = when {
-        // APP0 (JFIF) — structural, no private data
-        code == MARKER_APP0 -> true
-        // APP1 — the EXIF block itself (never XMP, which is also APP1)
-        code == MARKER_APP1 -> keepExif && payload.startsWithAscii("Exif\u0000\u0000")
-        // APP2 — keep only ICC color profiles
-        code == MARKER_APP2 -> payload.startsWithAscii("ICC_PROFILE\u0000")
-        // APP14 — Adobe transform info, needed to decode some JPEGs correctly
-        code == MARKER_APP14 -> payload.startsWithAscii("Adobe")
-        // All other APPn (XMP, IPTC, maker data, …) and comments: drop
-        code in 0xE1..0xEF || code == MARKER_COM -> false
-        // Everything else (quantization/huffman tables, frame headers, …): keep
-        else -> true
+    /** JFIF APP0 without a thumbnail: identifier, version, density, 0x0 thumbnail. */
+    private const val JFIF_HEADER_SIZE = 14
+
+    /**
+     * Returns the payload to write for a segment, or null to drop it. Most
+     * segments pass through untouched; JFIF is rebuilt without its thumbnail,
+     * which would otherwise smuggle a visual copy of the original image.
+     */
+    private fun sanitizeJpegSegment(code: Int, payload: ByteArray, keepExif: Boolean): ByteArray? = when {
+        // APP0 - plain JFIF is structural, but both JFIF and its JFXX
+        // extension can embed a thumbnail. Keep the JFIF header with the
+        // thumbnail fields zeroed; drop JFXX and anything else outright.
+        code == MARKER_APP0 ->
+            if (payload.startsWithAscii("JFIF\u0000") && payload.size >= JFIF_HEADER_SIZE) {
+                payload.copyOf(JFIF_HEADER_SIZE).also {
+                    it[12] = 0 // thumbnail width
+                    it[13] = 0 // thumbnail height
+                }
+            } else {
+                null
+            }
+        // APP1 - the EXIF block itself (never XMP, which is also APP1)
+        code == MARKER_APP1 ->
+            payload.takeIf { keepExif && it.startsWithAscii("Exif\u0000\u0000") }
+        // APP2 - keep only ICC color profiles, with identifying text scrubbed
+        code == MARKER_APP2 ->
+            if (payload.startsWithAscii("ICC_PROFILE\u0000")) IccSanitizer.sanitize(payload) else null
+        // APP14 - Adobe transform info, needed to decode some JPEGs correctly
+        code == MARKER_APP14 -> payload.takeIf { it.startsWithAscii("Adobe") }
+        // All other APPn (XMP, IPTC, maker data, ...) and comments: drop
+        code in 0xE1..0xEF || code == MARKER_COM -> null
+        // Everything else (quantization/huffman tables, frame headers, ...): keep
+        else -> payload
+    }
+
+    /**
+     * Copies entropy-coded scan data up to and including the end-of-image
+     * marker, then stops. Every 0xFF inside scan data is byte-stuffed as
+     * FF00 or is a restart marker (FFD0-FFD7), so the first FFD9 found is
+     * the real end of the image.
+     */
+    private fun copyScanUntilEoi(ins: InputStream, outs: OutputStream) {
+        val buffer = ByteArray(8192)
+        var pendingFf = false
+        while (true) {
+            val read = ins.read(buffer)
+            if (read <= 0) return // truncated file: nothing more to copy
+            var index = 0
+            while (index < read) {
+                val byte = buffer[index].toInt() and 0xFF
+                if (pendingFf && byte == MARKER_EOI) {
+                    outs.write(buffer, 0, index + 1)
+                    return
+                }
+                pendingFf = byte == 0xFF
+                index++
+            }
+            outs.write(buffer, 0, read)
+        }
     }
 
     // ----------------------------------------------------------------- PNG
@@ -168,6 +261,13 @@ object MetadataStripper {
 
     // ---------------------------------------------------------------- WebP
 
+    // Structural + colour chunks only. Everything else (EXIF, "XMP ", and any
+    // unknown or vendor chunk) is dropped: an allow-list, so a chunk type this
+    // build has never heard of cannot carry metadata through.
+    private val WEBP_KEEP = setOf(
+        "VP8 ", "VP8L", "VP8X", "ALPH", "ANIM", "ANMF", "ICCP",
+    )
+
     private fun stripWebp(source: File, dest: File, keepExif: Boolean) {
         source.inputStream().buffered().use { ins ->
             val header = ByteArray(12)
@@ -185,11 +285,15 @@ object MetadataStripper {
                     if (size < 0) throw IOException("Corrupt WebP: bad chunk size")
                     val padded = size + (size and 1)
                     val type = String(fourcc, Charsets.US_ASCII)
-                    if ((type == "EXIF" && !keepExif) || type == "XMP ") {
+                    val keep = type in WEBP_KEEP || (keepExif && type == "EXIF")
+                    if (!keep) {
                         skipFully(ins, padded.toLong())
                     } else {
                         val data = ByteArray(padded)
                         readFully(ins, data)
+                        if (type == "ICCP") {
+                            IccSanitizer.sanitizeProfileInPlace(data, size)
+                        }
                         if (type == "VP8X" && size >= 1) {
                             // Clear the XMP flag bit, and EXIF unless kept
                             var flags = data[0].toInt() and 0x04.inv()
@@ -218,6 +322,17 @@ object MetadataStripper {
         val b = ins.read()
         if (b == -1) throw EOFException("Unexpected end of file")
         return b
+    }
+
+    /** Fills [buffer] completely; false when the stream ends first. */
+    private fun tryReadFully(ins: InputStream, buffer: ByteArray): Boolean {
+        var offset = 0
+        while (offset < buffer.size) {
+            val read = ins.read(buffer, offset, buffer.size - offset)
+            if (read == -1) return false
+            offset += read
+        }
+        return true
     }
 
     private fun readFully(ins: InputStream, buffer: ByteArray) {

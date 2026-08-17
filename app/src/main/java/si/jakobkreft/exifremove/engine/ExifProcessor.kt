@@ -26,7 +26,7 @@ data class ProcessedImage(
     val error: ProcessError? = null,
 )
 
-enum class ProcessError { UNSUPPORTED_FORMAT, UNREADABLE }
+enum class ProcessError { UNSUPPORTED_FORMAT, UNREADABLE, NOT_PROVABLY_CLEAN }
 
 class ProcessorOptions(
     val randomFileNames: Boolean,
@@ -41,8 +41,8 @@ object ExifProcessor {
         template: Template,
         options: ProcessorOptions,
     ): List<ProcessedImage> = withContext(Dispatchers.IO) {
-        val sessionDir = File(File(context.cacheDir, "cleaned"), UUID.randomUUID().toString())
-        sessionDir.mkdirs()
+        CleanedCache.prune(context)
+        val sessionDir = CleanedCache.sessionDir(context, UUID.randomUUID().toString())
         uris.map { uri -> processOne(context, uri, template, options, sessionDir) }
     }
 
@@ -68,6 +68,16 @@ object ExifProcessor {
             if (format == ImageFormat.MP4) {
                 return processVideo(context, uri, temp, originalName, template, options, outDir)
             }
+            // HEIC/AVIF keep their metadata in ISO-BMFF item boxes that no
+            // in-place strip here understands, so they are re-encoded from
+            // decoded pixels — the one route that is clean by construction.
+            if (format == ImageFormat.HEIF) {
+                return if (options.convertUnsupported) {
+                    convertToJpeg(temp, originalName, template, options, outDir)
+                } else {
+                    ProcessedImage(null, originalName ?: "?", "", ProcessError.UNSUPPORTED_FORMAT)
+                }
+            }
             return if (format != ImageFormat.UNSUPPORTED) {
                 val (ext, mime) = when (format) {
                     ImageFormat.JPEG -> "jpg" to "image/jpeg"
@@ -80,6 +90,12 @@ object ExifProcessor {
                 try {
                     cleanFile(temp, outFile, template)
                     ProcessedImage(outFile, outName, mime)
+                } catch (e: VerificationException) {
+                    // Never hand back a file that looks cleaned but isn't.
+                    outFile.delete()
+                    ProcessedImage(
+                        null, originalName ?: outName, mime, ProcessError.NOT_PROVABLY_CLEAN
+                    )
                 } catch (e: Exception) {
                     outFile.delete()
                     ProcessedImage(null, originalName ?: outName, mime, ProcessError.UNREADABLE)
@@ -147,7 +163,15 @@ object ExifProcessor {
         } catch (ignored: Exception) {
             // The JPEG itself is clean; kept metadata is best-effort here.
         }
-        return ProcessedImage(outFile, outName, "image/jpeg")
+        // The pixels were re-encoded, so any EXIF present is what we just
+        // wrote — but still prove nothing else came along with it.
+        return try {
+            OutputVerifier.verify(ImageFormat.JPEG, outFile, keepExif = true)
+            ProcessedImage(outFile, outName, "image/jpeg")
+        } catch (e: VerificationException) {
+            outFile.delete()
+            ProcessedImage(null, originalName ?: outName, "", ProcessError.NOT_PROVABLY_CLEAN)
+        }
     }
 
     // ------------------------------------------------------ metadata rewrite
@@ -385,17 +409,21 @@ object ExifProcessor {
                 Mp4Scrubber.scrub(dest, template)
                 true
             }
-            format != ImageFormat.UNSUPPORTED -> {
+            format == ImageFormat.HEIF || format == ImageFormat.UNSUPPORTED -> false
+            else -> {
                 val surgical = template.otherExif == RuleAction.KEEP
                 MetadataStripper.strip(format, source, dest, keepExif = surgical)
+                val exifWrittenBack = template.needsRewrite || hasOrientation(source)
                 if (surgical) {
                     editExifSurgically(source, dest, template)
-                } else if (template.needsRewrite || hasOrientation(source)) {
+                } else if (exifWrittenBack) {
                     copyBackKeptTags(source, dest, template)
                 }
+                // Last line of defence: prove the produced file is metadata-free
+                // rather than trusting that the strip did what it intended.
+                OutputVerifier.verify(format, dest, keepExif = surgical || exifWrittenBack)
                 true
             }
-            else -> false
         }
     }
 
