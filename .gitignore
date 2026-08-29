@@ -11,3 +11,4 @@ build/
 *.aab
 *.keystore
 /app/debug/
+/app/release/
