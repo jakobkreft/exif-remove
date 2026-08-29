@@ -162,8 +162,8 @@
     <string name="onb4_body">You instantly get cleaned copies to pass on — your originals never change. Everything happens on your device, and the built-in metadata viewer lets you verify it yourself.</string>
 
     <!-- About -->
-    <string name="about_description">Removes EXIF and other metadata from photos and videos before you share them. Free software, licensed under the GNU GPL v3.</string>
+    <string name="about_description">Removes EXIF and other metadata from photos and videos before you share them. Free software, licensed under the GNU GPL v3 or later.</string>
     <string name="version">Version %1$s</string>
     <string name="source_code">Source code</string>
-    <string name="license">License: GNU GPL v3.0</string>
+    <string name="license">License: GNU GPL v3.0 or later</string>
 </resources>

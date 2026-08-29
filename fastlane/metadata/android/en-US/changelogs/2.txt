@@ -1,6 +1,6 @@
 Video support:
 * Clean MP4, MOV and 3GP videos — device info, location, timestamps
-  and other metadata are wiped in place, streams are never re-encoded
+  and other metadata wiped in place, streams never re-encoded
 * Templates now apply to videos too (keep / remove / randomize)
 * Share videos or mixed photo+video selections to the app
 

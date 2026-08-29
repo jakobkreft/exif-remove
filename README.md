@@ -71,4 +71,12 @@ toolchain automatically via the foojay resolver if you do not have one.
 
 ## License
 
-[GNU General Public License v3.0](LICENSE)
+Copyright (C) 2026 Jakob Kreft
+
+EXIF Remove is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version. See [LICENSE](LICENSE) for the full text.
+
+Every source file carries an [SPDX](https://spdx.dev/) identifier
+(`GPL-3.0-or-later`).

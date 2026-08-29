@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Jakob Kreft
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 package si.jakobkreft.exifremove.data
 
 import android.content.Context

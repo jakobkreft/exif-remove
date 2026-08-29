@@ -15,4 +15,4 @@ XMP, IPTC, comments and embedded thumbnails are always removed. ICC color profil
 
 After every clean you get a <b>report</b>: what was removed from each file, what was kept, and what was hidden inside it — a motion photo's video, an embedded thumbnail, a second image appended after the first. Each cleaned image is re-parsed from scratch and refused if it cannot be proven free of metadata, so a leak fails closed instead of being shared silently.
 
-No network access. No tracking. Free software under the GNU GPL v3.
+No network access. No tracking. Free software under the GNU GPL v3 or later.
