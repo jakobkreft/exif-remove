@@ -55,19 +55,26 @@ class ExifProcessorTest {
 
     private fun clean(template: Template): ExifInterface {
         val out = tmp.newFile("cleaned.jpg")
-        assertTrue(ExifProcessor.cleanFile(photo, out, template))
+        assertNotNull(ExifProcessor.cleanFile(photo, out, template))
         return ExifInterface(out.absolutePath)
     }
 
+    /** The report the engine produced for the last [clean] of [photo]. */
+    private fun report(template: Template): CleaningReport {
+        val out = tmp.newFile("reported.jpg")
+        return ExifProcessor.cleanFile(photo, out, template)!!
+    }
+
     @Test
-    fun `remove everything keeps only orientation`() {
+    fun `remove everything leaves no exif at all`() {
         val exif = clean(Template(id = "t", name = "t"))
         assertNull(exif.latLong)
         assertNull(exif.getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL))
         assertNull(exif.getAttribute(ExifInterface.TAG_MAKE))
         assertNull(exif.getAttribute(ExifInterface.TAG_MODEL))
         assertNull(exif.getAttribute(ExifInterface.TAG_EXPOSURE_TIME))
-        assertEquals("6", exif.getAttribute(ExifInterface.TAG_ORIENTATION))
+        // ExifInterface synthesizes "0" (undefined) when the tag is absent
+        assertEquals(0, exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, 0))
     }
 
     @Test
@@ -132,7 +139,8 @@ class ExifProcessorTest {
         assertNull(exif.getAttribute(ExifInterface.TAG_OFFSET_TIME_ORIGINAL))
         assertNull(exif.getAttribute(ExifInterface.TAG_GPS_TIMESTAMP))
         assertNull(exif.getAttribute(ExifInterface.TAG_MAKE))
-        assertEquals("6", exif.getAttribute(ExifInterface.TAG_ORIENTATION))
+        // ExifInterface synthesizes "0" (undefined) when the tag is absent
+        assertEquals(0, exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, 0))
     }
 
     @Test

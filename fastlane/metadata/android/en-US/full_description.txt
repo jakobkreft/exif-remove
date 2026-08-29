@@ -11,6 +11,8 @@ Share one or more photos or videos to EXIF Remove from any app, pick a cleaning 
 
 The app ships with editable built-in templates (Remove everything, Remove location only, Scramble location & date). Create your own templates, set a default, and optionally skip the picker to clean with one tap.
 
-Orientation is always kept, so photos never show up rotated. XMP, IPTC, comments and embedded thumbnails are always removed. ICC color profiles are kept, so colors never change. JPEG, PNG and WebP are cleaned without re-encoding — pixels stay exactly as they were. Other image formats such as HEIC can optionally be converted to clean JPEGs. Videos (MP4, MOV, 3GP) are cleaned in place: device info, location, timestamps and other metadata are wiped without re-encoding, so it works instantly even on large recordings. File names can leak information too, so cleaned files can be given random names.
+XMP, IPTC, comments and embedded thumbnails are always removed. ICC color profiles are kept, so colors never change. JPEG, PNG and WebP are cleaned without re-encoding — pixels stay exactly as they were. Other image formats such as HEIC can optionally be converted to clean JPEGs. Videos (MP4, MOV, 3GP) are cleaned in place: device info, location, timestamps and other metadata are wiped without re-encoding, so it works instantly even on large recordings. File names can leak information too, so cleaned files can be given random names.
+
+After every clean you get a <b>report</b>: what was removed from each file, what was kept, and what was hidden inside it — a motion photo's video, an embedded thumbnail, a second image appended after the first. Each cleaned image is re-parsed from scratch and refused if it cannot be proven free of metadata, so a leak fails closed instead of being shared silently.
 
 No network access. No tracking. Free software under the GNU GPL v3.

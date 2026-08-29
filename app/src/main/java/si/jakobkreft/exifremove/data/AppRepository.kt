@@ -51,7 +51,7 @@ class AppRepository(private val context: Context) {
         val templates = this[Keys.TEMPLATES]?.let {
             try {
                 json.decodeFromString(templateListSerializer, it)
-                    // Migration: orientation is always kept now
+                    // Migration: this built-in template no longer exists
                     .filterNot { template -> template.id == Template.LEGACY_ID_KEEP_ORIENTATION }
                     .ifEmpty { null }
             } catch (e: Exception) {

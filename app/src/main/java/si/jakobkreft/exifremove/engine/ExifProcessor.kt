@@ -24,6 +24,8 @@ data class ProcessedImage(
     val displayName: String,
     val mimeType: String,
     val error: ProcessError? = null,
+    /** What was removed from this file; null when it could not be cleaned. */
+    val report: CleaningReport? = null,
 )
 
 enum class ProcessError { UNSUPPORTED_FORMAT, UNREADABLE, NOT_PROVABLY_CLEAN }
@@ -83,13 +85,12 @@ object ExifProcessor {
                     ImageFormat.JPEG -> "jpg" to "image/jpeg"
                     ImageFormat.PNG -> "png" to "image/png"
                     ImageFormat.WEBP -> "webp" to "image/webp"
-                    else -> throw IllegalStateException()
                 }
                 val outName = outputName(originalName, ext, options)
                 val outFile = File(outDir, outName)
                 try {
-                    cleanFile(temp, outFile, template)
-                    ProcessedImage(outFile, outName, mime)
+                    val report = cleanFile(temp, outFile, template)
+                    ProcessedImage(outFile, outName, mime, report = report)
                 } catch (e: VerificationException) {
                     // Never hand back a file that looks cleaned but isn't.
                     outFile.delete()
@@ -131,8 +132,8 @@ object ExifProcessor {
         val outName = outputName(originalName, ext, options, prefix = "VID_")
         val outFile = File(outDir, outName)
         return try {
-            cleanFile(temp, outFile, template)
-            ProcessedImage(outFile, outName, mime)
+            val report = cleanFile(temp, outFile, template)
+            ProcessedImage(outFile, outName, mime, report = report)
         } catch (e: Exception) {
             outFile.delete()
             ProcessedImage(null, originalName ?: outName, mime, ProcessError.UNREADABLE)
@@ -147,6 +148,7 @@ object ExifProcessor {
         options: ProcessorOptions,
         outDir: File,
     ): ProcessedImage {
+        val before = readMetadata(source, MetadataStripper.detectFormat(source))
         val bitmap: Bitmap = BitmapFactory.decodeFile(source.absolutePath)
             ?: return ProcessedImage(null, originalName ?: "?", "", ProcessError.UNSUPPORTED_FORMAT)
         val outName = outputName(originalName?.let { stripExtension(it) + ".jpg" }, "jpg", options)
@@ -167,7 +169,20 @@ object ExifProcessor {
         // wrote — but still prove nothing else came along with it.
         return try {
             OutputVerifier.verify(ImageFormat.JPEG, outFile, keepExif = true)
-            ProcessedImage(outFile, outName, "image/jpeg")
+            val log = StripLog().apply { reEncoded() }
+            val report = CleaningReport(
+                format = ImageFormat.JPEG,
+                changes = MetadataDiff.compare(
+                    before,
+                    readMetadata(outFile, ImageFormat.JPEG),
+                    template,
+                ),
+                findings = log.findings(),
+                originalBytes = source.length(),
+                cleanedBytes = outFile.length(),
+                verified = true,
+            )
+            ProcessedImage(outFile, outName, "image/jpeg", report = report)
         } catch (e: VerificationException) {
             outFile.delete()
             ProcessedImage(null, originalName ?: outName, "", ProcessError.NOT_PROVABLY_CLEAN)
@@ -322,7 +337,7 @@ object ExifProcessor {
 
     /**
      * Path B (template removes "other" metadata): everything was stripped;
-     * copy back only what the template keeps. Orientation is always restored.
+     * copy back only what the template keeps.
      */
     private fun copyBackKeptTags(original: File, cleaned: File, template: Template) {
         val src = ExifInterface(original.absolutePath)
@@ -361,12 +376,6 @@ object ExifProcessor {
             CAMERA_TAGS.forEach(::copyTag)
         }
 
-        // Orientation is always restored ("0" is the parser default, not data)
-        val orientation = src.getAttribute(ExifInterface.TAG_ORIENTATION)
-        if (orientation != null && orientation != "0") {
-            copyTag(ExifInterface.TAG_ORIENTATION)
-        }
-
         if (dirty) {
             // The destination was fully stripped, so anything present now was
             // synthesized by ExifInterface while parsing; don't write it back.
@@ -401,19 +410,22 @@ object ExifProcessor {
      * Cleans a media file on disk — the single engine behind both the share
      * flow and the inspector. Returns false when the format is unsupported.
      */
-    internal fun cleanFile(source: File, dest: File, template: Template): Boolean {
+    internal fun cleanFile(source: File, dest: File, template: Template): CleaningReport? {
         val format = MetadataStripper.detectFormat(source)
-        return when {
-            format == ImageFormat.MP4 -> {
+        if (format == ImageFormat.HEIF || format == ImageFormat.UNSUPPORTED) return null
+
+        val log = StripLog()
+        val before = readMetadata(source, format)
+
+        when (format) {
+            ImageFormat.MP4 -> {
                 source.copyTo(dest, overwrite = true)
-                Mp4Scrubber.scrub(dest, template)
-                true
+                Mp4Scrubber.scrub(dest, template, log)
             }
-            format == ImageFormat.HEIF || format == ImageFormat.UNSUPPORTED -> false
             else -> {
                 val surgical = template.otherExif == RuleAction.KEEP
-                MetadataStripper.strip(format, source, dest, keepExif = surgical)
-                val exifWrittenBack = template.needsRewrite || hasOrientation(source)
+                MetadataStripper.strip(format, source, dest, keepExif = surgical, log = log)
+                val exifWrittenBack = template.needsRewrite
                 if (surgical) {
                     editExifSurgically(source, dest, template)
                 } else if (exifWrittenBack) {
@@ -422,16 +434,27 @@ object ExifProcessor {
                 // Last line of defence: prove the produced file is metadata-free
                 // rather than trusting that the strip did what it intended.
                 OutputVerifier.verify(format, dest, keepExif = surgical || exifWrittenBack)
-                true
             }
         }
+
+        return CleaningReport(
+            format = format,
+            changes = MetadataDiff.compare(before, readMetadata(dest, format), template),
+            findings = log.findings(),
+            originalBytes = source.length(),
+            cleanedBytes = dest.length(),
+            // Videos are scrubbed in place rather than rebuilt, so there is no
+            // rebuilt container to re-parse; only images carry the guarantee.
+            verified = format != ImageFormat.MP4,
+        )
     }
 
-    private fun hasOrientation(source: File): Boolean = try {
-        (ExifInterface(source.absolutePath)
-            .getAttributeInt(ExifInterface.TAG_ORIENTATION, 0)) != 0
+    /** Reads a file's metadata for reporting; never fails the clean itself. */
+    internal fun readMetadata(file: File, format: ImageFormat): List<MetaEntry> = try {
+        if (format == ImageFormat.MP4) Mp4MetadataReader.read(file)
+        else ImageMetadataReader.read(file)
     } catch (e: Exception) {
-        false
+        emptyList()
     }
 
     // -------------------------------------------------------------- helpers

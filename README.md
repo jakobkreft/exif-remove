@@ -19,13 +19,24 @@ copies onward. No network access, no tracking, free software.
 - Ships with editable built-in templates (*Remove everything*,
   *Remove location only*, *Scramble location & date*);
   create your own, set a default, restore the built-ins any time
-- Orientation is always kept (photos never show up rotated); XMP, IPTC,
-  comments and embedded thumbnails are always removed; ICC color
-  profiles are kept so colors never change
+- XMP, IPTC, comments and embedded thumbnails are always removed; ICC
+  color profiles are kept so colors never change
 - Keeping a category keeps it byte-for-byte: cleaning is surgical, not
   a lossy rewrite
 - Supports JPEG, PNG and WebP without re-encoding (pixels are untouched);
-  other image formats (e.g. HEIC) can optionally be converted to clean JPEGs
+  HEIC and AVIF are converted to clean JPEGs, since their metadata lives in
+  container boxes that cannot be stripped in place
+- Drops anything appended after the end of an image — a Pixel motion
+  photo's video, an Ultra HDR gain map, a vendor debug trailer — all of
+  which carry a full second copy of the original metadata
+- Every cleaned image is **verified before you get it**: the output is
+  re-parsed from scratch and rejected unless it is provably free of
+  metadata, so a leak fails closed instead of being shared silently
+- **Cleaning report**: after every clean, each file shows what actually
+  came out of it — the tags removed, kept or scrambled, and the hidden
+  payloads a before/after table cannot show, because once they are gone
+  there is nothing left to list. Collapsed it is one line; expanded it is
+  the evidence
 - Cleans MP4, MOV and 3GP videos in place: device info, location, creation
   timestamps and other metadata boxes are wiped without changing a single
   stream byte — no re-encoding, works instantly even on large videos
@@ -50,7 +61,9 @@ copies onward. No network access, no tracking, free software.
 
 ## Building
 
-Requires JDK 17+ and the Android SDK.
+Requires the Android SDK (platform 37) and a JDK. The Gradle daemon JVM is
+pinned by `gradle/gradle-daemon-jvm.properties`; Gradle provisions a matching
+toolchain automatically via the foojay resolver if you do not have one.
 
 ```
 ./gradlew assembleRelease

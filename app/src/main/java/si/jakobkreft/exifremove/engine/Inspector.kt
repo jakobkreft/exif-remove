@@ -12,8 +12,12 @@ data class Inspection(
     val isVideo: Boolean,
     /** Metadata found in the original file. */
     val before: List<MetaEntry>,
-    /** Metadata left after cleaning with the template; null = unsupported format. */
-    val after: List<MetaEntry>?,
+    /**
+     * The result of really cleaning a copy with the chosen template.
+     * Null when the format cannot be cleaned in place — it is re-encoded
+     * on share instead, which removes everything.
+     */
+    val report: CleaningReport?,
 )
 
 /** Runs the real cleaning engine on a copy of a file to compare before/after. */
@@ -29,25 +33,17 @@ object Inspector {
                 } ?: return@withContext null
 
                 val format = MetadataStripper.detectFormat(temp)
-                val isVideo = format == ImageFormat.MP4
-                val before = try {
-                    if (isVideo) Mp4MetadataReader.read(temp) else ImageMetadataReader.read(temp)
-                } catch (e: Exception) {
-                    emptyList()
-                }
-                val after = try {
-                    if (ExifProcessor.cleanFile(temp, cleaned, template)) {
-                        if (isVideo) Mp4MetadataReader.read(cleaned)
-                        else ImageMetadataReader.read(cleaned)
-                    } else null
+                val before = ExifProcessor.readMetadata(temp, format)
+                val report = try {
+                    ExifProcessor.cleanFile(temp, cleaned, template)
                 } catch (e: Exception) {
                     null
                 }
                 Inspection(
                     fileName = ExifProcessor.queryDisplayName(context, uri) ?: "?",
-                    isVideo = isVideo,
+                    isVideo = format == ImageFormat.MP4,
                     before = before,
-                    after = after,
+                    report = report,
                 )
             } catch (e: Exception) {
                 null

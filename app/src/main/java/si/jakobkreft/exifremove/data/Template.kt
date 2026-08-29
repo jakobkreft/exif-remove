@@ -7,7 +7,6 @@ enum class RuleAction { KEEP, REMOVE, RANDOMIZE }
 
 /**
  * A cleaning template. Each category of metadata gets an action.
- * Orientation is always preserved (photos would appear rotated otherwise).
  * XMP, IPTC, comments and embedded thumbnails are always removed;
  * ICC color profiles are always kept.
  */
@@ -31,7 +30,7 @@ data class Template(
         const val ID_REMOVE_LOCATION = "builtin-remove-location"
         const val ID_SCRAMBLE = "builtin-scramble"
 
-        /** Removed in 1.1: orientation is now always kept. */
+        /** Removed in 1.1. */
         const val LEGACY_ID_KEEP_ORIENTATION = "builtin-keep-orientation"
 
         fun builtIns(): List<Template> = listOf(

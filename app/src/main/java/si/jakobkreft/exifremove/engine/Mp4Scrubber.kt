@@ -40,11 +40,12 @@ object Mp4Scrubber {
         return type in setOf("ftyp", "moov", "mdat", "free", "skip", "wide")
     }
 
-    fun scrub(file: File, template: Template) {
+    fun scrub(file: File, template: Template, log: StripLog? = null) {
         RandomAccessFile(file, "rw").use { raf ->
             val ctx = Context(
                 raf = raf,
                 template = template,
+                log = log,
                 randomTime = if (template.dateTime == RuleAction.RANDOMIZE) {
                     val past = System.currentTimeMillis() / 1000 -
                         Random.nextLong(0L, 20L * 365 * 24 * 60 * 60)
@@ -58,6 +59,7 @@ object Mp4Scrubber {
     private class Context(
         val raf: RandomAccessFile,
         val template: Template,
+        val log: StripLog?,
         val randomTime: Long,
     )
 
@@ -169,12 +171,14 @@ object Mp4Scrubber {
 
     /** Renames a box to `free` and zero-fills its payload. Size unchanged. */
     private fun freeBox(ctx: Context, box: Box) {
+        ctx.log?.clearedVideoBox()
         ctx.raf.seek(box.start + 4)
         ctx.raf.write("free".toByteArray(Charsets.US_ASCII))
         zeroRange(ctx, box.payloadStart, box.end)
     }
 
     private fun zeroPayload(ctx: Context, box: Box) {
+        ctx.log?.clearedVideoBox()
         zeroRange(ctx, box.payloadStart, box.end)
     }
 
@@ -196,6 +200,7 @@ object Mp4Scrubber {
      * Sizes, indexes and the 'data' headers stay byte-for-byte identical.
      */
     private fun blankIlstEntry(ctx: Context, entry: Box) {
+        ctx.log?.clearedVideoBox()
         forEachBox(ctx.raf, entry.payloadStart, entry.end) { data ->
             if (data.type != "data") return@forEachBox
             ctx.raf.seek(data.payloadStart)

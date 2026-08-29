@@ -1,6 +1,5 @@
 package si.jakobkreft.exifremove
 
-import android.content.ComponentName
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
@@ -12,11 +11,14 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -49,8 +51,11 @@ import kotlinx.coroutines.withContext
 import si.jakobkreft.exifremove.data.AppRepository
 import si.jakobkreft.exifremove.data.Template
 import si.jakobkreft.exifremove.engine.ExifProcessor
+import si.jakobkreft.exifremove.engine.ProcessError
 import si.jakobkreft.exifremove.engine.ProcessedImage
 import si.jakobkreft.exifremove.engine.ProcessorOptions
+import si.jakobkreft.exifremove.ui.FileResultRow
+import si.jakobkreft.exifremove.ui.VerifiedBadge
 import si.jakobkreft.exifremove.ui.templateSummary
 import si.jakobkreft.exifremove.ui.theme.ExifRemoveTheme
 
@@ -112,12 +117,14 @@ class ShareActivity : ComponentActivity() {
             else -> "*/*"
         }
         shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        // The app deliberately leaves itself in this chooser. Cleaning an
+        // already-clean file is a cheap no-op (no re-encode, so no quality
+        // loss), and being able to hand a cleaned file back to another copy
+        // of the app is what makes chaining work — most usefully across a
+        // work/personal profile boundary, where the second copy can save it
+        // on the other side.
         val chooser = Intent.createChooser(shareIntent, null).apply {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            putExtra(
-                Intent.EXTRA_EXCLUDE_COMPONENTS,
-                arrayOf(ComponentName(this@ShareActivity, ShareActivity::class.java)),
-            )
         }
         startActivity(chooser)
         finish()
@@ -178,6 +185,7 @@ private fun ShareSheet(
     val repository = remember { AppRepository.get(context) }
     val state by repository.state.collectAsState(initial = null)
     var stage by remember { mutableStateOf<Stage>(Stage.Pick) }
+    var expandedIndex by remember { mutableStateOf<Int?>(null) }
     var selectedTemplate by remember { mutableStateOf<Template?>(null) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -270,17 +278,17 @@ private fun ShareSheet(
                 }
                 is Stage.Done -> {
                     val cleaned = current.results.filter { it.file != null }
-                    val failed = current.results.size - cleaned.size
+                    val withheld = current.results.count {
+                        it.error == ProcessError.NOT_PROVABLY_CLEAN
+                    }
+                    val failed = current.results.size - cleaned.size - withheld
+
                     if (cleaned.isEmpty()) {
                         Text(
                             stringResource(R.string.nothing_could_be_cleaned),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.error,
                         )
-                        OutlinedButton(
-                            onClick = onFinish,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) { Text(stringResource(R.string.cancel)) }
                     } else {
                         Text(
                             pluralStringResource(
@@ -288,13 +296,55 @@ private fun ShareSheet(
                             ),
                             style = MaterialTheme.typography.bodyLarge,
                         )
-                        if (failed > 0) {
-                            Text(
-                                pluralStringResource(R.plurals.n_images_failed, failed, failed),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.error,
+                        // Videos are scrubbed in place rather than rebuilt, so
+                        // there is no re-parsed container behind the claim.
+                        // Only promise verification where it actually ran.
+                        if (cleaned.all { it.report?.verified == true }) {
+                            VerifiedBadge()
+                        }
+                    }
+                    if (withheld > 0) {
+                        Text(
+                            pluralStringResource(
+                                R.plurals.n_files_withheld, withheld, withheld
+                            ),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                    if (failed > 0) {
+                        Text(
+                            pluralStringResource(R.plurals.n_images_failed, failed, failed),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+
+                    // One row per file: a plain summary, with the evidence a
+                    // tap away for anyone who wants to check the work.
+                    Column(
+                        modifier = Modifier
+                            .heightIn(max = 380.dp)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        current.results.forEachIndexed { index, image ->
+                            FileResultRow(
+                                image = image,
+                                expanded = expandedIndex == index,
+                                onToggle = {
+                                    expandedIndex = if (expandedIndex == index) null else index
+                                },
                             )
                         }
+                    }
+
+                    if (cleaned.isEmpty()) {
+                        OutlinedButton(
+                            onClick = onFinish,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { Text(stringResource(R.string.cancel)) }
+                    } else {
                         Button(
                             onClick = { onShare(cleaned) },
                             modifier = Modifier.fillMaxWidth(),

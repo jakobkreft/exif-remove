@@ -1,26 +1,31 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
 }
 
 android {
     namespace = "si.jakobkreft.exifremove"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "si.jakobkreft.exifremove"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "1.1.0"
+        versionCode = 4
+        versionName = "1.3.0"
     }
 
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            // AGP otherwise bakes the git HEAD into META-INF as
+            // version-control-info.textproto. That makes the APK differ
+            // between two checkouts of the same source, which defeats
+            // reproducible builds — and ships build provenance in an app
+            // whose whole job is removing metadata.
+            vcsInfo { include = false }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -31,8 +36,10 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
+    kotlin {
+        compilerOptions {
+            jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+        }
     }
     buildFeatures {
         compose = true

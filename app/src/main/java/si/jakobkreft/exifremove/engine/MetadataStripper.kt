@@ -82,15 +82,21 @@ object MetadataStripper {
      * EXIF block survives (for surgical per-tag editing afterwards) while
      * XMP, IPTC, comments and other metadata are still dropped.
      */
-    fun strip(format: ImageFormat, source: File, dest: File, keepExif: Boolean = false) {
+    fun strip(
+        format: ImageFormat,
+        source: File,
+        dest: File,
+        keepExif: Boolean = false,
+        log: StripLog? = null,
+    ) {
         when (format) {
             ImageFormat.JPEG -> source.inputStream().buffered().use { ins ->
-                dest.outputStream().buffered().use { outs -> stripJpeg(ins, outs, keepExif) }
+                dest.outputStream().buffered().use { outs -> stripJpeg(ins, outs, keepExif, log) }
             }
             ImageFormat.PNG -> source.inputStream().buffered().use { ins ->
-                dest.outputStream().buffered().use { outs -> stripPng(ins, outs, keepExif) }
+                dest.outputStream().buffered().use { outs -> stripPng(ins, outs, keepExif, log) }
             }
-            ImageFormat.WEBP -> stripWebp(source, dest, keepExif)
+            ImageFormat.WEBP -> stripWebp(source, dest, keepExif, log)
             ImageFormat.MP4 -> throw IOException("Videos are handled by Mp4Scrubber")
             ImageFormat.HEIF -> throw IOException("HEIF is re-encoded, not stripped in place")
             ImageFormat.UNSUPPORTED -> throw IOException("Unsupported format")
@@ -108,7 +114,12 @@ object MetadataStripper {
     private const val MARKER_APP14 = 0xEE
     private const val MARKER_COM = 0xFE
 
-    private fun stripJpeg(ins: InputStream, outs: OutputStream, keepExif: Boolean) {
+    private fun stripJpeg(
+        ins: InputStream,
+        outs: OutputStream,
+        keepExif: Boolean,
+        log: StripLog?,
+    ) {
         if (readByte(ins) != 0xFF || readByte(ins) != MARKER_SOI) {
             throw IOException("Not a JPEG file")
         }
@@ -133,7 +144,8 @@ object MetadataStripper {
                     // debug trailer — is not image data and carries a full copy
                     // of the original metadata, so it must not be carried over.
                     outs.write(0xFF); outs.write(code)
-                    copyScanUntilEoi(ins, outs)
+                    val trailing = copyScanUntilEoi(ins, outs, log)
+                    log?.droppedTrailing(trailing)
                     return
                 }
                 code == 0x01 || code in 0xD0..0xD7 -> {
@@ -148,6 +160,12 @@ object MetadataStripper {
                     val payload = ByteArray(length - 2)
                     readFully(ins, payload)
                     val kept = sanitizeJpegSegment(code, payload, keepExif)
+                    if (kept == null) {
+                        log?.droppedSegment(jpegSegmentName(code), payload.size.toLong())
+                    } else if (kept.size < payload.size) {
+                        // Only JFIF shrinks, and only by losing its thumbnail.
+                        log?.droppedThumbnail((payload.size - kept.size).toLong())
+                    }
                     if (kept != null) {
                         val keptLength = kept.size + 2
                         outs.write(0xFF); outs.write(code)
@@ -200,24 +218,61 @@ object MetadataStripper {
      * FF00 or is a restart marker (FFD0-FFD7), so the first FFD9 found is
      * the real end of the image.
      */
-    private fun copyScanUntilEoi(ins: InputStream, outs: OutputStream) {
+    private fun copyScanUntilEoi(ins: InputStream, outs: OutputStream, log: StripLog?): Long {
         val buffer = ByteArray(8192)
         var pendingFf = false
         while (true) {
             val read = ins.read(buffer)
-            if (read <= 0) return // truncated file: nothing more to copy
+            if (read <= 0) return 0 // truncated file: nothing more to copy
             var index = 0
             while (index < read) {
                 val byte = buffer[index].toInt() and 0xFF
                 if (pendingFf && byte == MARKER_EOI) {
                     outs.write(buffer, 0, index + 1)
-                    return
+                    val trailerStart = index + 1
+                    // Naming what the trailer was makes the removal legible:
+                    // "a hidden video" lands where "1.4 MB of data" does not.
+                    log?.trailerKind(classifyTrailer(buffer, trailerStart, read))
+                    return (read - trailerStart).toLong() + drain(ins)
                 }
                 pendingFf = byte == 0xFF
                 index++
             }
             outs.write(buffer, 0, read)
         }
+    }
+
+    /** Identifies an appended payload from its own magic bytes. */
+    private fun classifyTrailer(buffer: ByteArray, start: Int, end: Int): TrailerKind {
+        val available = end - start
+        if (available >= 2 &&
+            buffer[start] == 0xFF.toByte() && buffer[start + 1] == 0xD8.toByte()
+        ) {
+            return TrailerKind.IMAGE
+        }
+        if (available >= 8 &&
+            String(buffer, start + 4, 4, Charsets.US_ASCII) in MP4_FIRST_BOXES
+        ) {
+            return TrailerKind.VIDEO
+        }
+        return TrailerKind.UNKNOWN
+    }
+
+    /** Counts (and discards) whatever is left in the stream. */
+    private fun drain(ins: InputStream): Long {
+        val buffer = ByteArray(8192)
+        var total = 0L
+        while (true) {
+            val read = ins.read(buffer)
+            if (read <= 0) return total
+            total += read
+        }
+    }
+
+    private fun jpegSegmentName(code: Int): String = when {
+        code == MARKER_COM -> "COM"
+        code in 0xE0..0xEF -> "APP${code - 0xE0}"
+        else -> "0x%02X".format(code)
     }
 
     // ----------------------------------------------------------------- PNG
@@ -233,7 +288,12 @@ object MetadataStripper {
         "iCCP", "sBIT", "bKGD", "pHYs", "acTL", "fcTL", "fdAT"
     )
 
-    private fun stripPng(ins: InputStream, outs: OutputStream, keepExif: Boolean) {
+    private fun stripPng(
+        ins: InputStream,
+        outs: OutputStream,
+        keepExif: Boolean,
+        log: StripLog?,
+    ) {
         val sig = ByteArray(8)
         readFully(ins, sig)
         if (!sig.contentEquals(PNG_SIGNATURE)) throw IOException("Not a PNG file")
@@ -254,8 +314,14 @@ object MetadataStripper {
 
             if (type in PNG_KEEP || (keepExif && type == "eXIf")) {
                 outs.write(lenBytes); outs.write(typeBytes); outs.write(data); outs.write(crc)
+            } else {
+                log?.droppedSegment(type, length.toLong())
             }
-            if (type == "IEND") return
+            if (type == "IEND") {
+                val trailing = drain(ins)
+                log?.droppedTrailing(trailing)
+                return
+            }
         }
     }
 
@@ -268,7 +334,7 @@ object MetadataStripper {
         "VP8 ", "VP8L", "VP8X", "ALPH", "ANIM", "ANMF", "ICCP",
     )
 
-    private fun stripWebp(source: File, dest: File, keepExif: Boolean) {
+    private fun stripWebp(source: File, dest: File, keepExif: Boolean, log: StripLog?) {
         source.inputStream().buffered().use { ins ->
             val header = ByteArray(12)
             readFully(ins, header)
@@ -287,6 +353,7 @@ object MetadataStripper {
                     val type = String(fourcc, Charsets.US_ASCII)
                     val keep = type in WEBP_KEEP || (keepExif && type == "EXIF")
                     if (!keep) {
+                        log?.droppedSegment(type.trim(), size.toLong())
                         skipFully(ins, padded.toLong())
                     } else {
                         val data = ByteArray(padded)

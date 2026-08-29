@@ -40,7 +40,7 @@
     <string name="template_name_empty">Name can\'t be empty</string>
     <string name="save">Save</string>
     <string name="cancel">Cancel</string>
-    <string name="always_removed_note">Orientation is always kept, so photos never show up rotated. XMP, IPTC, comments and embedded thumbnails are always removed; ICC color profiles are kept, so colors never change. Videos (MP4, MOV, 3GP) are cleaned in place and streams are never re-encoded.</string>
+    <string name="always_removed_note">XMP, IPTC, comments and embedded thumbnails are always removed; ICC color profiles are kept, so colors never change. Videos (MP4, MOV, 3GP) are cleaned in place and streams are never re-encoded.</string>
     <string name="delete_template_title">Delete template?</string>
     <string name="delete_template_message">“%1$s” will be removed. Built-in templates can be brought back with “Restore default templates”.</string>
 
@@ -75,6 +75,49 @@
     <string name="error_unsupported_format">Unsupported format</string>
     <string name="error_could_not_read">Could not read image</string>
 
+    <!-- Cleaning report -->
+    <string name="verified_clean">Verified clean</string>
+    <string name="verified_clean_desc">Each cleaned file was re-parsed from scratch and contains no metadata. Anything that could not be proven clean was withheld.</string>
+    <string name="error_not_provably_clean">Withheld: could not be proven clean</string>
+    <string name="error_not_provably_clean_desc">Something survived cleaning that shouldn\'t have, so this file was deleted rather than shared. Please report it.</string>
+    <plurals name="n_files_withheld">
+        <item quantity="one">%d file withheld</item>
+        <item quantity="other">%d files withheld</item>
+    </plurals>
+    <string name="report_nothing_found">No metadata found — already clean</string>
+    <string name="report_show_details">Show what was removed</string>
+    <string name="report_hide_details">Hide details</string>
+    <plurals name="report_removed_n">
+        <item quantity="one">%d entry removed</item>
+        <item quantity="other">%d entries removed</item>
+    </plurals>
+    <plurals name="report_scrambled_n">
+        <item quantity="one">%d scrambled</item>
+        <item quantity="other">%d scrambled</item>
+    </plurals>
+    <plurals name="report_kept_n">
+        <item quantity="one">%d kept</item>
+        <item quantity="other">%d kept</item>
+    </plurals>
+    <string name="report_hidden_payload">%1$s hidden</string>
+    <string name="report_findings">Also removed</string>
+    <string name="report_reencoded_short">re-encoded as a clean JPEG</string>
+
+    <!-- Structural findings -->
+    <string name="finding_trailing_video">A video hidden after the image (%1$s) — a motion photo keeps one, and it carries its own location, timestamp and device name</string>
+    <string name="finding_trailing_image">A second image hidden after the first (%1$s) — such as an Ultra HDR gain map, carrying its own copy of the metadata</string>
+    <string name="finding_trailing_unknown">%1$s of data appended after the end of the image</string>
+    <string name="finding_thumbnail">An embedded thumbnail (%1$s) — a small but complete copy of the original picture</string>
+    <plurals name="finding_segments">
+        <item quantity="one">%1$d metadata segment removed (%2$s)</item>
+        <item quantity="other">%1$d metadata segments removed (%2$s)</item>
+    </plurals>
+    <plurals name="finding_video_boxes">
+        <item quantity="one">%d metadata box cleared inside the video</item>
+        <item quantity="other">%d metadata boxes cleared inside the video</item>
+    </plurals>
+    <string name="finding_reencoded">Re-encoded as a fresh JPEG — this format stores metadata in a way that cannot be stripped in place, so the picture was rebuilt from decoded pixels</string>
+
     <!-- Short category labels for template summaries -->
     <string name="sum_location">Location</string>
     <string name="sum_date">Date</string>
@@ -98,6 +141,7 @@
     <string name="inspector_unsupported_note">This format can\'t be cleaned in place. When shared, it is converted to a fresh JPEG, which removes all metadata.</string>
     <string name="inspector_no_metadata">No metadata found — this file is already clean.</string>
     <string name="inspector_could_not_read">Could not read this file.</string>
+    <string name="inspector_findings_note">Beyond the entries above, cleaning this file also removes:</string>
     <string name="inspector_redaction_note">Android hides location data in media files from apps without photo access. Grant photo and video access to EXIF Remove to inspect the original location.</string>
 
     <!-- Onboarding -->
