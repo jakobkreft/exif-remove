@@ -69,6 +69,11 @@ toolchain automatically via the foojay resolver if you do not have one.
 ./gradlew assembleRelease
 ```
 
+## Privacy
+
+No data collected, and no network access: the app does not request the internet
+permission, so Android blocks it at the system level. See [PRIVACY.md](PRIVACY.md).
+
 ## License
 
 Copyright (C) 2026 Jakob Kreft
