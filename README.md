@@ -4,50 +4,31 @@
 
 Remove EXIF and other metadata from photos and videos before you share them.
 
-EXIF Remove registers itself as a share target: share one or more photos or
-videos to it from any app, pick a cleaning template, and share the cleaned
-copies onward. No network access, no tracking, free software.
+Share files to EXIF Remove from any app, pick a template, and pass the cleaned
+copies on. Works offline, no tracking, free software.
 
 ## Features
 
-- Appears in the Android share sheet for photos and videos, single or multiple
-- **Templates** decide what happens to each metadata category:
-  - Location (GPS): keep, remove, or randomize
-  - Date & time: keep, remove, or randomize
-  - Camera, software & author info: keep or remove
-  - Other metadata: keep or remove
-- Ships with editable built-in templates (*Remove everything*,
-  *Remove location only*, *Scramble location & date*);
-  create your own, set a default, restore the built-ins any time
-- XMP, IPTC, comments and embedded thumbnails are always removed; ICC
-  color profiles are kept so colors never change
-- Keeping a category keeps it byte-for-byte: cleaning is surgical, not
-  a lossy rewrite
-- Supports JPEG, PNG and WebP without re-encoding (pixels are untouched);
-  HEIC and AVIF are converted to clean JPEGs, since their metadata lives in
-  container boxes that cannot be stripped in place
-- Drops anything appended after the end of an image — a Pixel motion
-  photo's video, an Ultra HDR gain map, a vendor debug trailer — all of
-  which carry a full second copy of the original metadata
-- Every cleaned image is **verified before you get it**: the output is
-  re-parsed from scratch and rejected unless it is provably free of
-  metadata, so a leak fails closed instead of being shared silently
-- **Cleaning report**: after every clean, each file shows what actually
-  came out of it — the tags removed, kept or scrambled, and the hidden
-  payloads a before/after table cannot show, because once they are gone
-  there is nothing left to list. Collapsed it is one line; expanded it is
-  the evidence
-- Cleans MP4, MOV and 3GP videos in place: device info, location, creation
-  timestamps and other metadata boxes are wiped without changing a single
-  stream byte — no re-encoding, works instantly even on large videos
-- **Metadata viewer**: inspect any photo or video, grouped by category,
-  and preview exactly what a template would remove, keep or randomize —
-  powered by the same engine that does the real cleaning
-- First-launch tutorial (replayable from the menu)
-- Optional random output file names (file names can leak information too)
-- Save cleaned copies to the gallery, or skip the picker entirely and
-  clean with your default template in one tap
-- Material 3 UI with dynamic colors, light/dark theme
+- Share target for photos and videos, one or many at a time
+- Templates set what happens to each category: location, date and time, camera
+  info, everything else. Each is kept, removed or randomized.
+- Three built-in templates, all editable. Add your own and set a default.
+- JPEG, PNG and WebP are cleaned without re-encoding, so the pixels are
+  untouched. HEIC and AVIF are converted to clean JPEGs.
+- MP4, MOV and 3GP are cleaned in place. Streams are never re-encoded, so it is
+  instant even on large videos.
+- Removes data hidden after the end of an image, such as a motion photo's video
+  or an Ultra HDR gain map. Both carry a second copy of the metadata.
+- Always removes XMP, IPTC, comments and embedded thumbnails. Keeps ICC colour
+  profiles, so colours do not shift.
+- Every cleaned image is re-parsed and checked before you get it. Anything that
+  cannot be proven clean is withheld instead of shared.
+- Cleaning report for each file: what was removed, kept or scrambled, and what
+  was hidden inside it.
+- Metadata viewer to inspect any file and preview what a template would do.
+- Optional random output file names, since names leak information too.
+- Save to the gallery, or skip the picker and clean with your default in one tap.
+- Material 3 interface, light and dark, dynamic colour.
 
 ## Screenshots
 
@@ -61,27 +42,23 @@ copies onward. No network access, no tracking, free software.
 
 ## Building
 
-Requires the Android SDK (platform 37) and a JDK. The Gradle daemon JVM is
-pinned by `gradle/gradle-daemon-jvm.properties`; Gradle provisions a matching
-toolchain automatically via the foojay resolver if you do not have one.
+Needs a JDK and the Android SDK with platform 37.
 
 ```
 ./gradlew assembleRelease
 ```
 
+Release builds are reproducible: building the same commit twice gives a
+byte-identical APK.
+
 ## Privacy
 
-No data collected, and no network access: the app does not request the internet
-permission, so Android blocks it at the system level. See [PRIVACY.md](PRIVACY.md).
+Nothing is collected and there is no network access, because the app does not
+request the internet permission. See [PRIVACY.md](PRIVACY.md).
 
 ## License
 
 Copyright (C) 2026 Jakob Kreft
 
-EXIF Remove is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either version 3 of the License, or (at your option) any later
-version. See [LICENSE](LICENSE) for the full text.
-
-Every source file carries an [SPDX](https://spdx.dev/) identifier
-(`GPL-3.0-or-later`).
+Free software under the GNU General Public License, version 3 or later. See
+[LICENSE](LICENSE). Every source file carries an SPDX `GPL-3.0-or-later` header.
