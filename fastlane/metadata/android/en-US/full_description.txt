@@ -1,18 +1,28 @@
-EXIF Remove strips metadata from your photos and videos before you share them, so you don't leak your location, the time a photo was taken, or what device took it.
+EXIF Remove strips metadata from photos and videos before you share them, so you don't hand over your location, the time a photo was taken, or the device that took it.
 
-Share one or more photos or videos to EXIF Remove from any app, pick a cleaning template, and share the cleaned copies onward — or open the app and pick media directly.
+Share files to EXIF Remove from any app, pick a template, and pass the cleaned copies on. Or open the app and pick files directly.
 
-<b>Templates</b> decide what happens to each metadata category:
+<b>Templates</b> control what happens to each category:
 
-* Location (GPS): keep, remove, or randomize
-* Date & time: keep, remove, or randomize
-* Camera, software & author info: keep or remove
+* Location (GPS): keep, remove or randomize
+* Date and time: keep, remove or randomize
+* Camera, software and author info: keep or remove
 * Other metadata: keep or remove
 
-The app ships with editable built-in templates (Remove everything, Remove location only, Scramble location & date). Create your own templates, set a default, and optionally skip the picker to clean with one tap.
+Three built-in templates come ready to edit: Remove everything, Remove location only, and Scramble location and date. Add your own, set a default, and skip the picker to clean in one tap.
 
-XMP, IPTC, comments and embedded thumbnails are always removed. ICC color profiles are kept, so colors never change. JPEG, PNG and WebP are cleaned without re-encoding — pixels stay exactly as they were. Other image formats such as HEIC can optionally be converted to clean JPEGs. Videos (MP4, MOV, 3GP) are cleaned in place: device info, location, timestamps and other metadata are wiped without re-encoding, so it works instantly even on large recordings. File names can leak information too, so cleaned files can be given random names.
+<b>What gets cleaned</b>
 
-After every clean you get a <b>report</b>: what was removed from each file, what was kept, and what was hidden inside it — a motion photo's video, an embedded thumbnail, a second image appended after the first. Each cleaned image is re-parsed from scratch and refused if it cannot be proven free of metadata, so a leak fails closed instead of being shared silently.
+JPEG, PNG and WebP are cleaned without re-encoding, so the pixels are untouched. HEIC and AVIF are converted to clean JPEGs. Videos (MP4, MOV and 3GP) are cleaned in place, also without re-encoding, so even large recordings finish instantly.
 
-No network access. No tracking. Free software under the GNU GPL v3 or later.
+XMP, IPTC, comments and embedded thumbnails are always removed. ICC color profiles are kept, so colors never change. Cleaned files can be given random names, because file names leak information too.
+
+Phones also hide whole files after the end of an image: a motion photo's video, an Ultra HDR gain map, a second copy of the picture. Each carries its own record of where you were and what device you own. EXIF Remove drops those as well.
+
+<b>See what was removed</b>
+
+After each clean you get a report for every file: what was removed, what was kept, and what was hidden inside. Each cleaned image is then re-parsed from scratch and withheld if it cannot be proven free of metadata.
+
+The built-in metadata viewer lets you inspect any photo or video yourself and preview exactly what a template would do to it.
+
+No network access: the app does not request the internet permission, so Android blocks it at the system level. No tracking, no ads. Free software under the GNU GPL v3 or later.

@@ -19,8 +19,8 @@ copies on. Works offline, no tracking, free software.
   instant even on large videos.
 - Removes data hidden after the end of an image, such as a motion photo's video
   or an Ultra HDR gain map. Both carry a second copy of the metadata.
-- Always removes XMP, IPTC, comments and embedded thumbnails. Keeps ICC colour
-  profiles, so colours do not shift.
+- Always removes XMP, IPTC, comments and embedded thumbnails. Keeps ICC color
+  profiles, so colors do not shift.
 - Every cleaned image is re-parsed and checked before you get it. Anything that
   cannot be proven clean is withheld instead of shared.
 - Cleaning report for each file: what was removed, kept or scrambled, and what
@@ -28,7 +28,7 @@ copies on. Works offline, no tracking, free software.
 - Metadata viewer to inspect any file and preview what a template would do.
 - Optional random output file names, since names leak information too.
 - Save to the gallery, or skip the picker and clean with your default in one tap.
-- Material 3 interface, light and dark, dynamic colour.
+- Material 3 interface, light and dark, dynamic color.
 
 ## Screenshots
 
