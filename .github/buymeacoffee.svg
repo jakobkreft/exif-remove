@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="158" height="28" role="img"
+     aria-label="Buy me a coffee">
+  <rect width="158" height="28" rx="6" fill="#FFDD00"/>
+  <g transform="translate(10,6)" fill="none" stroke="#1a1a1a"
+     stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M1 5h11v6a4 4 0 0 1-4 4H5a4 4 0 0 1-4-4z"/>
+    <path d="M12 6h2.2a2.3 2.3 0 0 1 0 4.6H12"/>
+    <path d="M3.4 1.4v1.6M6.5 1v2M9.6 1.4v1.6"/>
+  </g>
+  <text x="36" y="18.5" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif"
+        font-size="12.5" font-weight="600" fill="#1a1a1a">Buy me a coffee</text>
+</svg>

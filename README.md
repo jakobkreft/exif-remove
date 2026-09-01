@@ -62,3 +62,7 @@ Copyright (C) 2026 Jakob Kreft
 
 Free software under the GNU General Public License, version 3 or later. See
 [LICENSE](LICENSE). Every source file carries an SPDX `GPL-3.0-or-later` header.
+
+---
+
+<a href="https://buymeacoffee.com/jaak"><img src=".github/buymeacoffee.svg" alt="Buy me a coffee" height="28"></a>
