@@ -1,1 +1,1 @@
-EXIF Remove
+EXIF Remove - Strip, Randomize & View Metadata
