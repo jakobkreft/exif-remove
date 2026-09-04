@@ -1,11 +1,22 @@
 # EXIF Remove
 
-![EXIF Remove](fastlane/metadata/android/en-US/images/featureGraphic.png)
+![Platform](https://img.shields.io/badge/platform-Android-green) ![Min SDK](https://img.shields.io/badge/min%20SDK-26-blue) ![License](https://img.shields.io/badge/license-GPL--3.0--or--later-lightgrey) [![Latest release](https://img.shields.io/github/v/release/jakobkreft/exif-remove?color=orange&label=release)](https://github.com/jakobkreft/exif-remove/releases)
+
+[<img width="100%" height="auto" src="fastlane/metadata/android/en-US/images/featureGraphic.png" alt="EXIF Remove feature graphic" />](https://f-droid.org/packages/si.jakobkreft.exifremove/)
 
 Remove EXIF and other metadata from photos and videos before you share them.
 
 Share files to EXIF Remove from any app, pick a template, and pass the cleaned
 copies on. Works offline, no tracking, free software.
+
+<div>
+  <a href="https://f-droid.org/packages/si.jakobkreft.exifremove/">
+    <img src="https://f-droid.org/badge/get-it-on.png" alt="Get it on F-Droid" height="80">
+  </a>
+  <a href="https://github.com/jakobkreft/exif-remove/releases/latest">
+    <img src=".github/badge_github.png" alt="Get it on GitHub" height="80">
+  </a>
+</div>
 
 ## Features
 
