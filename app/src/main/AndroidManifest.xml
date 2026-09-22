@@ -50,6 +50,25 @@
             </intent-filter>
         </activity>
 
+        <!--
+             Makes the app a source in the system file picker, one entry per
+             cleaning template, so any upload dialog can take a cleaned copy
+             directly. MANAGE_DOCUMENTS is held only by the system picker, so
+             nothing else can enumerate the gallery through here; the app the
+             user picks in receives a read grant on that one document.
+        -->
+        <provider
+            android:name=".picker.CleanDocumentsProvider"
+            android:authorities="si.jakobkreft.exifremove.documents"
+            android:exported="true"
+            android:enabled="true"
+            android:grantUriPermissions="true"
+            android:permission="android.permission.MANAGE_DOCUMENTS">
+            <intent-filter>
+                <action android:name="android.content.action.DOCUMENTS_PROVIDER" />
+            </intent-filter>
+        </provider>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="si.jakobkreft.exifremove.fileprovider"

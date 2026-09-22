@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import si.jakobkreft.exifremove.picker.PickerIntegration
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -25,6 +26,7 @@ data class AppState(
     val randomFileNames: Boolean,
     val convertUnsupported: Boolean,
     val verifyOutput: Boolean,
+    val pickerIntegration: Boolean,
     val onboardingDone: Boolean,
 ) {
     val defaultTemplate: Template
@@ -45,6 +47,7 @@ class AppRepository(private val context: Context) {
         val RANDOM_FILE_NAMES = booleanPreferencesKey("random_file_names")
         val CONVERT_UNSUPPORTED = booleanPreferencesKey("convert_unsupported")
         val VERIFY_OUTPUT = booleanPreferencesKey("verify_output")
+        val PICKER_INTEGRATION = booleanPreferencesKey("picker_integration")
         val ONBOARDING_DONE = booleanPreferencesKey("onboarding_done")
     }
 
@@ -72,6 +75,7 @@ class AppRepository(private val context: Context) {
             // On by default: the guarantee is the point of the app, and it is
             // never weakened without the user asking for it.
             verifyOutput = this[Keys.VERIFY_OUTPUT] ?: true,
+            pickerIntegration = this[Keys.PICKER_INTEGRATION] ?: true,
             onboardingDone = this[Keys.ONBOARDING_DONE] ?: false,
         )
     }
@@ -80,6 +84,9 @@ class AppRepository(private val context: Context) {
         context.dataStore.edit { prefs ->
             prefs[Keys.TEMPLATES] = json.encodeToString(templateListSerializer, templates)
         }
+        // Every template is a separate source in the file picker, so adding,
+        // renaming or deleting one has to reach the picker's root list.
+        PickerIntegration.notifyRootsChanged(context)
     }
 
     suspend fun upsertTemplate(template: Template) {
@@ -117,6 +124,11 @@ class AppRepository(private val context: Context) {
 
     suspend fun setVerifyOutput(value: Boolean) {
         context.dataStore.edit { it[Keys.VERIFY_OUTPUT] = value }
+    }
+
+    suspend fun setPickerIntegration(value: Boolean) {
+        context.dataStore.edit { it[Keys.PICKER_INTEGRATION] = value }
+        PickerIntegration.setEnabled(context, value)
     }
 
     suspend fun setOnboardingDone() {
