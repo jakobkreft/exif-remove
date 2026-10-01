@@ -273,6 +273,13 @@ object ExifProcessor {
 
     // ------------------------------------------------------ metadata rewrite
 
+    /**
+     * androidx marks TAG_THUMBNAIL_ORIENTATION as library-internal, so the
+     * tag name is spelled out rather than referencing a restricted constant
+     * that could disappear in a library update.
+     */
+    private const val TAG_THUMBNAIL_ORIENTATION = "ThumbnailOrientation"
+
     internal val DATE_TAGS = setOf(
         ExifInterface.TAG_DATETIME,
         ExifInterface.TAG_DATETIME_ORIGINAL,
@@ -363,7 +370,7 @@ object ExifProcessor {
         clearTag(ExifInterface.TAG_JPEG_INTERCHANGE_FORMAT_LENGTH)
         clearTag(ExifInterface.TAG_THUMBNAIL_IMAGE_WIDTH)
         clearTag(ExifInterface.TAG_THUMBNAIL_IMAGE_LENGTH)
-        clearTag(ExifInterface.TAG_THUMBNAIL_ORIENTATION)
+        clearTag(TAG_THUMBNAIL_ORIENTATION)
         clearTag(ExifInterface.TAG_XMP)
         disableThumbnailWriteback(exif)
 

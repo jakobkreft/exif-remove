@@ -1,0 +1,4 @@
+* The About screen now links to Ko-fi only where donation links are allowed.
+  Copies installed from Google Play show a rating link instead.
+* Stopped using an internal AndroidX constant that could break on a library
+  update.

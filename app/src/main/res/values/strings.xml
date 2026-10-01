@@ -169,5 +169,6 @@
     <string name="version">Version %1$s</string>
     <string name="source_code">Source code</string>
     <string name="support">Support on Ko-fi</string>
+    <string name="rate_on_play">Rate on Google Play</string>
     <string name="license">License: GNU GPL v3.0 or later</string>
 </resources>

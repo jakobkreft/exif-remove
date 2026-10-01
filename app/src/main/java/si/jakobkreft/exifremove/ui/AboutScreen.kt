@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.outlined.Coffee
+import androidx.compose.material.icons.outlined.StarRate
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -33,10 +34,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import si.jakobkreft.exifremove.InstallSource
 import si.jakobkreft.exifremove.R
 
 const val SOURCE_URL = "https://github.com/jakobkreft/exif-remove"
 const val SUPPORT_URL = "https://ko-fi.com/jakobk"
+private const val PLAY_URL = "https://play.google.com/store/apps/details?id=si.jakobkreft.exifremove"
+private const val PLAY_MARKET_URL = "market://details?id=si.jakobkreft.exifremove"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -119,15 +123,32 @@ fun AboutScreen(onBack: () -> Unit) {
                     modifier = Modifier.padding(start = 8.dp),
                 )
             }
+            // Play installs get a rating link; everywhere else gets the
+            // donation link, which Play's rules do not allow.
+            val fromPlay = remember { InstallSource.isFromPlayStore(context) }
             OutlinedButton(onClick = {
-                context.startActivity(Intent(Intent.ACTION_VIEW, SUPPORT_URL.toUri()))
+                if (fromPlay) openPlayListing(context) else {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, SUPPORT_URL.toUri()))
+                }
             }) {
-                Icon(Icons.Outlined.Coffee, contentDescription = null)
+                Icon(
+                    if (fromPlay) Icons.Outlined.StarRate else Icons.Outlined.Coffee,
+                    contentDescription = null,
+                )
                 Text(
-                    stringResource(R.string.support),
+                    stringResource(if (fromPlay) R.string.rate_on_play else R.string.support),
                     modifier = Modifier.padding(start = 8.dp),
                 )
             }
         }
+    }
+}
+
+/** Prefers the Play app, falling back to the web listing if it is absent. */
+private fun openPlayListing(context: android.content.Context) {
+    try {
+        context.startActivity(Intent(Intent.ACTION_VIEW, PLAY_MARKET_URL.toUri()))
+    } catch (e: Exception) {
+        context.startActivity(Intent(Intent.ACTION_VIEW, PLAY_URL.toUri()))
     }
 }
