@@ -54,6 +54,8 @@ fun TemplateEditorScreen(
     var dateTime by rememberSaveable { mutableStateOf(existing?.dateTime ?: RuleAction.REMOVE) }
     var cameraInfo by rememberSaveable { mutableStateOf(existing?.cameraInfo ?: RuleAction.REMOVE) }
     var otherExif by rememberSaveable { mutableStateOf(existing?.otherExif ?: RuleAction.REMOVE) }
+    var orientation by rememberSaveable { mutableStateOf(existing?.orientation ?: RuleAction.REMOVE) }
+    var gainMap by rememberSaveable { mutableStateOf(existing?.gainMap ?: RuleAction.REMOVE) }
     var showNameError by rememberSaveable { mutableStateOf(false) }
 
     Scaffold(
@@ -85,6 +87,8 @@ fun TemplateEditorScreen(
                                     dateTime = dateTime,
                                     cameraInfo = cameraInfo,
                                     otherExif = otherExif,
+                                    orientation = orientation,
+                                    gainMap = gainMap,
                                     builtIn = existing?.builtIn ?: false,
                                 )
                             )
@@ -135,7 +139,7 @@ fun TemplateEditorScreen(
             CategoryRow(
                 label = stringResource(R.string.cat_camera),
                 value = cameraInfo,
-                options = listOf(RuleAction.KEEP, RuleAction.REMOVE),
+                options = listOf(RuleAction.KEEP, RuleAction.RANDOMIZE, RuleAction.REMOVE),
                 onChange = { cameraInfo = it },
             )
             CategoryRow(
@@ -143,6 +147,18 @@ fun TemplateEditorScreen(
                 value = otherExif,
                 options = listOf(RuleAction.KEEP, RuleAction.REMOVE),
                 onChange = { otherExif = it },
+            )
+            CategoryRow(
+                label = stringResource(R.string.cat_orientation),
+                value = orientation,
+                options = listOf(RuleAction.KEEP, RuleAction.REMOVE),
+                onChange = { orientation = it },
+            )
+            CategoryRow(
+                label = stringResource(R.string.cat_gainmap),
+                value = gainMap,
+                options = listOf(RuleAction.KEEP, RuleAction.REMOVE),
+                onChange = { gainMap = it },
             )
 
             Card(

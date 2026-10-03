@@ -28,6 +28,8 @@
     <string name="cat_datetime">Date &amp; time</string>
     <string name="cat_camera">Camera, software &amp; author</string>
     <string name="cat_other">Other metadata</string>
+    <string name="cat_orientation">Orientation</string>
+    <string name="cat_gainmap">HDR gain map</string>
 
     <!-- Actions -->
     <string name="action_keep">Keep</string>
@@ -40,7 +42,7 @@
     <string name="template_name_empty">Name can\'t be empty</string>
     <string name="save">Save</string>
     <string name="cancel">Cancel</string>
-    <string name="always_removed_note">XMP, IPTC, comments and embedded thumbnails are always removed; ICC color profiles are kept, so colors never change. Videos (MP4, MOV, 3GP) are cleaned in place and streams are never re-encoded.</string>
+    <string name="always_removed_note">XMP, IPTC, comments and embedded thumbnails are always removed; ICC color profiles are kept, so colors never change. Orientation and the HDR gain map carry nothing identifying, but dropping them can make a photo look rotated or flat. Videos (MP4, MOV, 3GP) are cleaned in place and streams are never re-encoded.</string>
     <string name="delete_template_title">Delete template?</string>
     <string name="delete_template_message">“%1$s” will be removed. Built-in templates can be brought back with “Restore default templates”.</string>
 
@@ -127,6 +129,8 @@
     <string name="sum_camera">Camera</string>
     <string name="sum_orientation">Orientation</string>
     <string name="sum_other">Other</string>
+    <string name="sum_keeps_orientation">keeps orientation</string>
+    <string name="sum_keeps_hdr">keeps HDR</string>
 
     <!-- Metadata viewer -->
     <string name="view_metadata">View metadata</string>

@@ -94,7 +94,9 @@ object MetadataStripper {
     ) {
         when (format) {
             ImageFormat.JPEG -> source.inputStream().buffered().use { ins ->
-                dest.outputStream().buffered().use { outs -> stripJpeg(ins, outs, keepExif, log) }
+                dest.outputStream().buffered().use { outs ->
+                    stripJpeg(ins, outs, keepExif, log)
+                }
             }
             ImageFormat.PNG -> source.inputStream().buffered().use { ins ->
                 dest.outputStream().buffered().use { outs -> stripPng(ins, outs, keepExif, log) }
@@ -128,6 +130,7 @@ object MetadataStripper {
         }
         outs.write(0xFF)
         outs.write(MARKER_SOI)
+
 
         while (true) {
             var b = readByte(ins)

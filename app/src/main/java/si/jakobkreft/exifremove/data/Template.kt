@@ -21,11 +21,22 @@ data class Template(
     val dateTime: RuleAction = RuleAction.REMOVE,
     val cameraInfo: RuleAction = RuleAction.REMOVE,
     val otherExif: RuleAction = RuleAction.REMOVE,
+    /**
+     * Which way up the picture is. Eight possible values that say nothing
+     * about the photographer, but dropping them leaves some viewers showing
+     * the photo sideways.
+     */
+    val orientation: RuleAction = RuleAction.REMOVE,
+    /**
+     * The Ultra HDR gain map. Holds no identifying data, but without it an
+     * HDR photo renders flat on an HDR screen.
+     */
+    val gainMap: RuleAction = RuleAction.REMOVE,
     val builtIn: Boolean = false,
 ) {
     /** True when some metadata must be written back after a full strip. */
     val needsRewrite: Boolean
-        get() = listOf(gps, dateTime, cameraInfo, otherExif)
+        get() = listOf(gps, dateTime, cameraInfo, otherExif, orientation)
             .any { it != RuleAction.REMOVE }
 
     companion object {
@@ -49,6 +60,10 @@ data class Template(
                 dateTime = RuleAction.KEEP,
                 cameraInfo = RuleAction.KEEP,
                 otherExif = RuleAction.KEEP,
+                // This template means "everything but the location", so the
+                // two that only affect how the photo looks stay as well.
+                orientation = RuleAction.KEEP,
+                gainMap = RuleAction.KEEP,
                 builtIn = true,
             ),
             Template(

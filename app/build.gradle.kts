@@ -30,8 +30,8 @@ android {
         applicationId = "si.jakobkreft.exifremove"
         minSdk = 26
         targetSdk = 36
-        versionCode = 7
-        versionName = "1.3.3"
+        versionCode = 8
+        versionName = "1.4.0"
     }
 
     signingConfigs {

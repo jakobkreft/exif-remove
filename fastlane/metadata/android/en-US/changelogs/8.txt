@@ -1,0 +1,10 @@
+Two new per-template options for data a photo needs to look right:
+
+* HDR gain map — keep it and an HDR photo still renders as HDR. The map
+  holds no identifying data, and the block describing it is rebuilt from
+  scratch so none of the camera's own XMP can come along.
+* Orientation — keep it and photos never show up sideways. It says nothing
+  about you.
+
+Camera info can now be randomized, replacing the make and model with a
+common handset instead of leaving a conspicuous blank.

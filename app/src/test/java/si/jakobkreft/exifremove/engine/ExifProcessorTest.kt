@@ -90,6 +90,7 @@ class ExifProcessorTest {
                 dateTime = RuleAction.KEEP,
                 cameraInfo = RuleAction.KEEP,
                 otherExif = RuleAction.KEEP,
+                orientation = RuleAction.KEEP,
             )
         )
         assertNull(exif.latLong)
@@ -213,5 +214,95 @@ class ExifProcessorTest {
         val report = ExifProcessor.cleanFile(photo, out, Template(id = "t", name = "t"))
         assertNotNull(report)
         assertTrue(report!!.verified)
+    }
+
+    @Test
+    fun `randomizing the camera swaps in a plausible handset and drops the rest`() {
+        val exif = clean(Template(id = "t", name = "t", cameraInfo = RuleAction.RANDOMIZE))
+        val make = exif.getAttribute(ExifInterface.TAG_MAKE)
+        assertNotNull(make)
+        assertTrue(make!!.isNotBlank())
+        assertFalse(make == "Google")
+        assertFalse(exif.getAttribute(ExifInterface.TAG_MODEL) == "Pixel 10 Pro")
+        assertNull(exif.getAttribute(ExifInterface.TAG_BODY_SERIAL_NUMBER))
+    }
+
+    @Test
+    fun `orientation can be kept while everything else goes`() {
+        val exif = clean(Template(id = "t", name = "t", orientation = RuleAction.KEEP))
+        assertEquals("6", exif.getAttribute(ExifInterface.TAG_ORIENTATION))
+        assertNull(exif.latLong)
+        assertNull(exif.getAttribute(ExifInterface.TAG_MAKE))
+    }
+
+    /** A minimal gain map: a JPEG whose only metadata is an hdrgm XMP block. */
+    private fun buildGainMap(): ByteArray {
+        val base = javaClass.classLoader!!.getResourceAsStream("tiny.jpg")!!.readBytes()
+        val xmp = ("http://ns.adobe.com/xap/1.0/\u0000" +
+            """<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF """ +
+            """xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">""" +
+            """<rdf:Description rdf:about="" """ +
+            """xmlns:hdrgm="http://ns.adobe.com/hdr-gain-map/1.0/" """ +
+            """hdrgm:Version="1.0" hdrgm:GainMapMax="1.5"/>""" +
+            """</rdf:RDF></x:xmpmeta>""").toByteArray(Charsets.ISO_8859_1)
+        val length = xmp.size + 2
+        val out = java.io.ByteArrayOutputStream()
+        out.write(base, 0, 2)                                  // SOI
+        out.write(0xFF); out.write(0xE1)
+        out.write((length shr 8) and 0xFF); out.write(length and 0xFF)
+        out.write(xmp)
+        out.write(base, 2, base.size - 2)
+        return out.toByteArray()
+    }
+
+    private fun photoWithGainMap(): File {
+        val file = tmp.newFile("hdr.jpg")
+        file.writeBytes(photo.readBytes() + buildGainMap())
+        return file
+    }
+
+    @Test
+    fun `the gain map is dropped unless the template asks for it`() {
+        val out = tmp.newFile("hdr_dropped.jpg")
+        ExifProcessor.cleanFile(photoWithGainMap(), out, Template(id = "t", name = "t"))
+        assertNull(GainMap.find(out))
+    }
+
+    @Test
+    fun `a kept gain map survives the surgical path, where exif is rewritten`() {
+        // ExifInterface.saveAttributes rewrites the whole JPEG, so a gain map
+        // attached before that edit would be silently lost.
+        val out = tmp.newFile("hdr_surgical.jpg")
+        val report = ExifProcessor.cleanFile(
+            photoWithGainMap(), out,
+            Template(
+                id = "t", name = "t",
+                gps = RuleAction.REMOVE, dateTime = RuleAction.KEEP,
+                cameraInfo = RuleAction.KEEP, otherExif = RuleAction.KEEP,
+                gainMap = RuleAction.KEEP,
+            ),
+        )
+        assertNotNull(report)
+        assertNotNull(GainMap.find(out))
+        assertNull(ExifInterface(out.absolutePath).latLong)
+    }
+
+    @Test
+    fun `a kept gain map survives a full strip too`() {
+        val out = tmp.newFile("hdr_full.jpg")
+        ExifProcessor.cleanFile(
+            photoWithGainMap(), out,
+            Template(id = "t", name = "t", gainMap = RuleAction.KEEP),
+        )
+        val found = GainMap.find(out)
+        assertNotNull(found)
+        assertNull(ExifInterface(out.absolutePath).getAttribute(ExifInterface.TAG_MAKE))
+    }
+
+    @Test
+    fun `a gain map carrying exif is refused, not quietly shipped`() {
+        // A crafted "gain map" with real EXIF must not slip through as render data.
+        val bad = photo.readBytes()
+        assertNotNull(GainMap.problemWith(bad))
     }
 }

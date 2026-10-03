@@ -64,17 +64,26 @@ object OutputVerifier {
      *
      * @throws VerificationException when the file is not provably clean.
      */
-    fun verify(format: ImageFormat, file: File, keepExif: Boolean) {
+    fun verify(
+        format: ImageFormat,
+        file: File,
+        keepExif: Boolean,
+        gainMapBytes: Int = 0,
+    ) {
         val bytes = file.readBytes()
+        // Regions proven correct by a stricter, targeted check than the
+        // generic signature scan: the generated container XMP (matched byte
+        // for byte) and the gain map (validated by GainMap.problemWith).
+        val proven = mutableListOf<IntRange>()
         when (format) {
-            ImageFormat.JPEG -> jpegProblem(bytes, keepExif)?.let { fail(it) }
+            ImageFormat.JPEG -> jpegProblem(bytes, keepExif, gainMapBytes, proven)?.let { fail(it) }
             ImageFormat.PNG -> pngProblem(bytes, keepExif)?.let { fail(it) }
             ImageFormat.WEBP -> webpProblem(bytes, keepExif)?.let { fail(it) }
             // Videos are scrubbed in place rather than rebuilt, and HEIF is
             // re-encoded from decoded pixels; neither is verified here.
             ImageFormat.MP4, ImageFormat.HEIF, ImageFormat.UNSUPPORTED -> return
         }
-        signatureProblem(bytes, keepExif)?.let { fail(it) }
+        signatureProblem(bytes, keepExif, proven)?.let { fail(it) }
     }
 
     private fun fail(problem: String): Nothing = throw VerificationException(problem)
@@ -85,9 +94,14 @@ object OutputVerifier {
 
     // -------------------------------------------------------------- content
 
-    private fun signatureProblem(bytes: ByteArray, keepExif: Boolean): String? {
+    private fun signatureProblem(
+        bytes: ByteArray,
+        keepExif: Boolean,
+        proven: List<IntRange> = emptyList(),
+    ): String? {
         for (start in bytes.indices) {
             if (!SIGNATURE_START[bytes[start].toInt() and 0xFF]) continue
+            if (proven.any { start in it }) continue
             for (signature in SIGNATURES) {
                 if (matchesAt(bytes, start, signature.bytes)) {
                     return "${signature.name} survived stripping"
@@ -110,7 +124,12 @@ object OutputVerifier {
 
     // ----------------------------------------------------------------- JPEG
 
-    private fun jpegProblem(b: ByteArray, keepExif: Boolean): String? {
+    private fun jpegProblem(
+        b: ByteArray,
+        keepExif: Boolean,
+        gainMapBytes: Int = 0,
+        proven: MutableList<IntRange> = mutableListOf(),
+    ): String? {
         if (b.size < 2 || u8(b, 0) != 0xFF || u8(b, 1) != 0xD8) {
             return "output does not start with a start-of-image marker"
         }
@@ -125,7 +144,7 @@ object OutputVerifier {
                     return if (pos + 2 == b.size) null
                     else "${b.size - pos - 2} bytes of trailing data after the end-of-image marker"
 
-                marker == 0xDA -> return jpegScanProblem(b, pos + 2)
+                marker == 0xDA -> return jpegScanProblem(b, pos + 2, gainMapBytes, proven)
 
                 marker in 0xD0..0xD7 || marker == 0x01 -> pos += 2
 
@@ -134,19 +153,35 @@ object OutputVerifier {
                     val size = u16(b, pos + 2)
                     if (size < 2) return "segment ${markerName(marker)} declares an invalid size"
                     if (pos + 2 + size > b.size) return "segment ${markerName(marker)} overruns the end of the file"
-                    jpegSegmentProblem(marker, b, pos + 4, size - 2, keepExif)?.let { return it }
+                    jpegSegmentProblem(
+                        marker, b, pos + 4, size - 2, keepExif, gainMapBytes, proven,
+                    )?.let { return it }
                     pos += 2 + size
                 }
             }
         }
     }
 
-    private fun jpegScanProblem(b: ByteArray, start: Int): String? {
+    private fun jpegScanProblem(
+        b: ByteArray,
+        start: Int,
+        gainMapBytes: Int,
+        proven: MutableList<IntRange>,
+    ): String? {
         var i = start
         while (i + 1 < b.size) {
             if (u8(b, i) == 0xFF && u8(b, i + 1) == 0xD9) {
-                return if (i + 2 == b.size) null
-                else "${b.size - i - 2} bytes of trailing data after the end-of-image marker"
+                val trailing = b.size - i - 2
+                if (trailing == 0) return null
+                if (gainMapBytes == 0 || trailing != gainMapBytes) {
+                    return "$trailing bytes of trailing data after the end-of-image marker"
+                }
+                // A kept gain map is the one thing allowed to follow the image,
+                // and only once it is proven to hold nothing but render data.
+                val map = b.copyOfRange(i + 2, b.size)
+                GainMap.problemWith(map)?.let { return it }
+                proven += (i + 2) until b.size
+                return null
             }
             i++
         }
@@ -159,13 +194,22 @@ object OutputVerifier {
         start: Int,
         length: Int,
         keepExif: Boolean,
+        gainMapBytes: Int,
+        proven: MutableList<IntRange>,
     ): String? = when {
         marker == 0xE0 ->
             if (length == 14 && u8(b, start + 12) == 0 && u8(b, start + 13) == 0) null
             else "APP0 is not a thumbnail-free JFIF header"
-        marker == 0xE1 ->
-            if (keepExif && startsWith(b, start, length, EXIF_SIGNATURE)) null
-            else "APP1 survived stripping"
+        marker == 0xE1 -> when {
+            keepExif && startsWith(b, start, length, EXIF_SIGNATURE) -> null
+            // The container declaration is generated, so it is required to match
+            // what we would generate, byte for byte. Anything else is foreign.
+            gainMapBytes > 0 && matchesGeneratedXmp(b, start, length, gainMapBytes) -> {
+                proven += start until (start + length)
+                null
+            }
+            else -> "APP1 survived stripping"
+        }
         marker == 0xE2 ->
             if (startsWith(b, start, length, "ICC_PROFILE\u0000")) null
             else "a non-ICC APP2 segment survived stripping"
@@ -179,6 +223,20 @@ object OutputVerifier {
         marker == 0xDB -> dqtProblem(b, start, length)
         marker == 0xC4 -> dhtProblem(b, start, length)
         else -> null
+    }
+
+    private fun matchesGeneratedXmp(
+        b: ByteArray,
+        start: Int,
+        length: Int,
+        gainMapBytes: Int,
+    ): Boolean {
+        val expected = GainMap.xmpPayload(gainMapBytes)
+        if (length != expected.size) return false
+        for (i in expected.indices) {
+            if (b[start + i] != expected[i]) return false
+        }
+        return true
     }
 
     private fun startsWith(b: ByteArray, start: Int, length: Int, prefix: String): Boolean {

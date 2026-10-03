@@ -360,8 +360,17 @@ object ExifProcessor {
             }
         }
 
-        if (template.cameraInfo == RuleAction.REMOVE) {
-            CAMERA_TAGS.forEach(::clearTag)
+        if (template.orientation == RuleAction.REMOVE) {
+            clearTag(ExifInterface.TAG_ORIENTATION)
+        }
+
+        when (template.cameraInfo) {
+            RuleAction.KEEP -> Unit
+            RuleAction.REMOVE -> CAMERA_TAGS.forEach(::clearTag)
+            RuleAction.RANDOMIZE -> {
+                CAMERA_TAGS.forEach(::clearTag)
+                randomizeDevice(exif)
+            }
         }
 
         // Always removed, even in keep-other mode: the embedded thumbnail
@@ -461,8 +470,20 @@ object ExifProcessor {
             RuleAction.REMOVE -> Unit
         }
 
-        if (template.cameraInfo == RuleAction.KEEP) {
-            CAMERA_TAGS.forEach(::copyTag)
+        if (template.orientation == RuleAction.KEEP) {
+            val orientation = src.getAttribute(ExifInterface.TAG_ORIENTATION)
+            if (orientation != null && orientation != "0") {
+                copyTag(ExifInterface.TAG_ORIENTATION)
+            }
+        }
+
+        when (template.cameraInfo) {
+            RuleAction.KEEP -> CAMERA_TAGS.forEach(::copyTag)
+            RuleAction.RANDOMIZE -> {
+                randomizeDevice(dst)
+                dirty = true
+            }
+            RuleAction.REMOVE -> Unit
         }
 
         if (dirty) {
@@ -481,6 +502,33 @@ object ExifProcessor {
                 // stays fully stripped, which is the safe direction.
             }
         }
+    }
+
+    private class DeviceProfile(val make: String, val model: String)
+
+    /**
+     * Ordinary, widely owned handsets. An empty Make/Model is itself a signal
+     * that a file was scrubbed, so a template can put a common one there
+     * instead. Only make and model are invented: a fabricated serial number
+     * would buy nothing and a mismatched lens would stand out.
+     */
+    private val DEVICE_PROFILES = listOf(
+        DeviceProfile("samsung", "SM-S911B"),
+        DeviceProfile("samsung", "SM-A546B"),
+        DeviceProfile("samsung", "SM-G991B"),
+        DeviceProfile("Xiaomi", "2201116SG"),
+        DeviceProfile("Xiaomi", "23127PN0CG"),
+        DeviceProfile("motorola", "moto g84 5G"),
+        DeviceProfile("OnePlus", "CPH2449"),
+        DeviceProfile("realme", "RMX3708"),
+        DeviceProfile("Fairphone", "FP4"),
+        DeviceProfile("Sony", "XQ-DQ54"),
+    )
+
+    private fun randomizeDevice(target: ExifInterface) {
+        val profile = DEVICE_PROFILES.random()
+        target.setAttribute(ExifInterface.TAG_MAKE, profile.make)
+        target.setAttribute(ExifInterface.TAG_MODEL, profile.model)
     }
 
     private fun randomLatitude() = Random.nextDouble(-55.0, 70.0)
@@ -518,6 +566,13 @@ object ExifProcessor {
             }
             else -> {
                 val surgical = template.otherExif == RuleAction.KEEP
+                // Read before stripping: the map lives past the end of the image,
+                // which the strip is about to discard.
+                val gainMap = if (template.gainMap == RuleAction.KEEP && format == ImageFormat.JPEG) {
+                    GainMap.find(source)?.let { GainMap.read(source, it) }
+                } else {
+                    null
+                }
                 MetadataStripper.strip(format, source, dest, keepExif = surgical, log = log)
                 val exifWrittenBack = template.needsRewrite
                 if (surgical) {
@@ -527,8 +582,15 @@ object ExifProcessor {
                 }
                 // Last line of defence: prove the produced file is metadata-free
                 // rather than trusting that the strip did what it intended.
+                // Last, so no later rewrite can discard it.
+                if (gainMap != null) GainMap.attach(dest, gainMap)
+
                 if (verify) {
-                    OutputVerifier.verify(format, dest, keepExif = surgical || exifWrittenBack)
+                    OutputVerifier.verify(
+                        format, dest,
+                        keepExif = surgical || exifWrittenBack,
+                        gainMapBytes = gainMap?.size ?: 0,
+                    )
                 }
             }
         }
