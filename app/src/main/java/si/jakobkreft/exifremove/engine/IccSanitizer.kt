@@ -10,10 +10,15 @@ package si.jakobkreft.exifremove.engine
  * the device manufacturer and model signatures, the profile creator, and the
  * profile's MD5 identifier. Those are zeroed here.
  *
- * Only the header is touched. It is fixed-size, always sits at the start of
- * the profile (and therefore inside the first APP2 chunk when a large profile
- * is split across several), and zero is the spec's "not identified" value for
- * each of these fields, so the profile stays valid and renders identically.
+ * The header is not the only place a vendor shows up: the tag table carries
+ * text tags too, and a stock Display P3 profile ships a copyright reading
+ * "Copyright (c) 2023 Google Inc." — stored as UTF-16, so a plain byte search
+ * for "Google" never sees it. Those text tags are blanked in place.
+ *
+ * Nothing is resized or removed: tag offsets stay valid, the colour transform
+ * is untouched, and the profile renders identically. The profile description
+ * ("Display P3") is deliberately left alone — it names a colour space, not a
+ * manufacturer, and some pipelines key off it.
  */
 internal object IccSanitizer {
 
@@ -30,6 +35,12 @@ internal object IccSanitizer {
         84 until 100, // profile ID (an MD5 of the profile, a stable fingerprint)
     )
 
+    /**
+     * Text tags that name a vendor. `desc` is excluded on purpose: it holds
+     * the colour space name, which is generic.
+     */
+    private val IDENTIFYING_TAGS = setOf("cprt", "dmnd", "dmdd")
+
     /** Sanitizes a JPEG APP2 payload in place, returning it for convenience. */
     fun sanitize(payload: ByteArray): ByteArray {
         // Chunk numbering is 1-based; the header only exists in the first chunk.
@@ -40,11 +51,67 @@ internal object IccSanitizer {
         return payload
     }
 
-    /** Zeroes the identifying header fields of a raw ICC profile. */
+    /** Zeroes the identifying header fields and vendor text of an ICC profile. */
     fun sanitizeProfileInPlace(profile: ByteArray, size: Int, offset: Int = 0) {
         if (size - offset < ICC_HEADER_SIZE) return
         for (field in IDENTIFYING_FIELDS) {
             for (index in field) profile[offset + index] = 0
         }
+        blankVendorTags(profile, offset, size)
     }
+
+    /**
+     * Walks the tag table and blanks the vendor-naming text tags. Every bound
+     * is checked: a profile split across APP2 chunks will have tag data beyond
+     * this buffer, and a malformed one must not take the clean down with it.
+     */
+    private fun blankVendorTags(profile: ByteArray, base: Int, size: Int) {
+        val tableStart = base + ICC_HEADER_SIZE
+        if (tableStart + 4 > size) return
+        val count = readU32(profile, tableStart)
+        if (count !in 1..1024) return
+        for (index in 0 until count) {
+            val record = tableStart + 4 + index * 12
+            if (record + 12 > size) return
+            val signature = String(profile, record, 4, Charsets.ISO_8859_1)
+            if (signature !in IDENTIFYING_TAGS) continue
+            val dataStart = base + readU32(profile, record + 4)
+            val dataSize = readU32(profile, record + 8)
+            if (dataStart < base || dataSize < 8 || dataStart + dataSize > size) continue
+            blankTextTag(profile, dataStart, dataSize)
+        }
+    }
+
+    /** Overwrites a text tag's characters, keeping its type and length intact. */
+    private fun blankTextTag(profile: ByteArray, start: Int, size: Int) {
+        when (String(profile, start, 4, Charsets.ISO_8859_1)) {
+            // ICC v4: a count of records, each pointing at UTF-16BE text.
+            "mluc" -> {
+                val records = readU32(profile, start + 8)
+                val recordSize = readU32(profile, start + 12)
+                if (recordSize < 12 || records !in 1..256) return
+                for (index in 0 until records) {
+                    val record = start + 16 + index * recordSize
+                    if (record + 12 > start + size) return
+                    val length = readU32(profile, record + 4)
+                    val offset = start + readU32(profile, record + 8)
+                    if (offset < start || offset + length > start + size) continue
+                    for (i in 0 until length) profile[offset + i] = 0
+                }
+            }
+            // ICC v2 textDescription: ASCII count, then the ASCII text.
+            "desc" -> {
+                val asciiLength = readU32(profile, start + 8)
+                val asciiStart = start + 12
+                if (asciiLength < 1 || asciiStart + asciiLength > start + size) return
+                for (i in 0 until asciiLength) profile[asciiStart + i] = 0
+            }
+            // Plain null-terminated ASCII.
+            else -> for (i in (start + 8) until (start + size)) profile[i] = 0
+        }
+    }
+
+    private fun readU32(b: ByteArray, i: Int): Int =
+        ((b[i].toInt() and 0xFF) shl 24) or ((b[i + 1].toInt() and 0xFF) shl 16) or
+            ((b[i + 2].toInt() and 0xFF) shl 8) or (b[i + 3].toInt() and 0xFF)
 }
