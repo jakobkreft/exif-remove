@@ -34,6 +34,8 @@ fun SettingsScreen(
     onRandomFileNamesChange: (Boolean) -> Unit,
     onConvertUnsupportedChange: (Boolean) -> Unit,
     onVerifyOutputChange: (Boolean) -> Unit,
+    onPickerIntegrationChange: (Boolean) -> Unit,
+    onPickerBrowseChange: (Boolean) -> Unit,
     onBack: () -> Unit,
 ) {
     Scaffold(
@@ -72,6 +74,18 @@ fun SettingsScreen(
                 description = stringResource(R.string.setting_convert_unsupported_desc),
                 checked = state.convertUnsupported,
                 onChange = onConvertUnsupportedChange,
+            )
+            SwitchSetting(
+                title = stringResource(R.string.setting_picker),
+                description = stringResource(R.string.setting_picker_desc),
+                checked = state.pickerIntegration,
+                onChange = onPickerIntegrationChange,
+            )
+            SwitchSetting(
+                title = stringResource(R.string.setting_picker_browse),
+                description = stringResource(R.string.setting_picker_browse_desc),
+                checked = state.pickerBrowse,
+                onChange = onPickerBrowseChange,
             )
             SwitchSetting(
                 title = stringResource(R.string.setting_verify),

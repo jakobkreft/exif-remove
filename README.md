@@ -24,6 +24,12 @@ copies on. Works offline, no tracking, free software.
 ## Features
 
 - Share target for photos and videos, one or many at a time
+- Appears as a source in the system file picker, so any app or website asking
+  for a file can take a cleaned copy directly. Pick a template, browse storage
+  by folder, and the file is cleaned only when it is actually opened
+- Can also stand in front of the picker itself: choosing it opens the ordinary
+  document picker, so the file may come from Drive or any other app, and what
+  the asking app receives is the cleaned copy
 - Templates set what happens to each category: location, date and time, camera
   info, everything else. Each is kept, removed or randomized.
 - Three built-in templates, all editable. Add your own and set a default.

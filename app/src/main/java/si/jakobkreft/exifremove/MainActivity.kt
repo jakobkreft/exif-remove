@@ -136,6 +136,10 @@ private fun AppNavigation() {
             onRandomFileNamesChange = { scope.launch { repository.setRandomFileNames(it) } },
             onConvertUnsupportedChange = { scope.launch { repository.setConvertUnsupported(it) } },
             onVerifyOutputChange = { scope.launch { repository.setVerifyOutput(it) } },
+            onPickerIntegrationChange = {
+                scope.launch { repository.setPickerIntegration(it) }
+            },
+            onPickerBrowseChange = { scope.launch { repository.setPickerBrowse(it) } },
             onBack = { screen = SCREEN_HOME },
         )
         SCREEN_ABOUT -> AboutScreen(onBack = { screen = SCREEN_HOME })
