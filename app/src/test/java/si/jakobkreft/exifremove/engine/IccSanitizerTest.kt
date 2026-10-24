@@ -5,9 +5,12 @@ package si.jakobkreft.exifremove.engine
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.ByteArrayOutputStream
+import java.util.zip.DeflaterOutputStream
 
 class IccSanitizerTest {
 
@@ -76,6 +79,44 @@ class IccSanitizerTest {
             profile.toList().windowed(needle.size)
                 .any { it.toByteArray().contentEquals(needle) }
         )
+    }
+
+    /** PNG iCCP data: profile name, NUL, compression method 0, zlib stream. */
+    private fun iccpData(name: String, profile: ByteArray): ByteArray {
+        val out = ByteArrayOutputStream()
+        out.write(name.toByteArray(Charsets.ISO_8859_1))
+        out.write(byteArrayOf(0, 0))
+        DeflaterOutputStream(out).use { it.write(profile) }
+        return out.toByteArray()
+    }
+
+    private fun ByteArray.containsSequence(needle: ByteArray): Boolean =
+        toList().windowed(needle.size).any { it.toByteArray().contentEquals(needle) }
+
+    @Test
+    fun `a png profile is inflated, cleaned and renamed`() {
+        val original = profileWithCopyright("Copyright (c) 2023 Google Inc.")
+        val rebuilt = IccSanitizer.sanitizePngChunk(iccpData("Skia", original))
+        assertNotNull(rebuilt)
+        assertTrue(rebuilt!!.copyOf(12).contentEquals("ICC profile\u0000".toByteArray()))
+
+        val profile = IccSanitizer.pngProfile(rebuilt)
+        assertNotNull(profile)
+        assertEquals(original.size, profile!!.size)
+        assertFalse(profile.containsSequence("Google".toByteArray(Charsets.UTF_16BE)))
+    }
+
+    @Test
+    fun `a png profile that inflates past any real size is refused`() {
+        // 17 MB of zeros compresses to a few kilobytes.
+        assertNull(IccSanitizer.pngProfile(iccpData("bomb", ByteArray(17 shl 20))))
+    }
+
+    @Test
+    fun `bytes after the compressed png profile are refused`() {
+        val data = iccpData("ICC profile", profileWithCopyright("x")) + "hidden".toByteArray()
+        assertNull(IccSanitizer.pngProfile(data))
+        assertNull(IccSanitizer.sanitizePngChunk(data))
     }
 
     @Test

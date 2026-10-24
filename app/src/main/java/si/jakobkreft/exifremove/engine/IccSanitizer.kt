@@ -3,6 +3,11 @@
 
 package si.jakobkreft.exifremove.engine
 
+import java.io.ByteArrayOutputStream
+import java.util.zip.DataFormatException
+import java.util.zip.DeflaterOutputStream
+import java.util.zip.Inflater
+
 /**
  * ICC colour profiles are kept — dropping them shifts the colours of every
  * wide-gamut photo — but their 128-byte header carries fields that identify
@@ -19,6 +24,10 @@ package si.jakobkreft.exifremove.engine
  * is untouched, and the profile renders identically. The profile description
  * ("Display P3") is deliberately left alone — it names a colour space, not a
  * manufacturer, and some pipelines key off it.
+ *
+ * PNG is the odd one out: it stores the profile zlib-compressed, where no
+ * byte-level edit or search can reach it, so it is inflated, cleaned and
+ * compressed again.
  */
 internal object IccSanitizer {
 
@@ -41,6 +50,16 @@ internal object IccSanitizer {
      */
     private val IDENTIFYING_TAGS = setOf("cprt", "dmnd", "dmdd")
 
+    /**
+     * Written over the free-text name a PNG encoder gives its profile, which
+     * can name the software or device ("Skia", a phone model) as easily as
+     * the colour space.
+     */
+    const val PNG_PROFILE_NAME = "ICC profile"
+
+    /** Real profiles are kilobytes; anything far larger is a decompression bomb. */
+    private const val MAX_PROFILE_SIZE = 16 shl 20
+
     /** Sanitizes a JPEG APP2 payload in place, returning it for convenience. */
     fun sanitize(payload: ByteArray): ByteArray {
         // Chunk numbering is 1-based; the header only exists in the first chunk.
@@ -49,6 +68,53 @@ internal object IccSanitizer {
             sanitizeProfileInPlace(payload, payload.size, offset = JPEG_ICC_PREFIX)
         }
         return payload
+    }
+
+    /**
+     * Rebuilds the data of a PNG iCCP chunk with the profile cleaned and the
+     * name replaced. Null when the chunk cannot be read, so the caller drops
+     * it rather than passing on a profile it never looked inside.
+     */
+    fun sanitizePngChunk(data: ByteArray): ByteArray? {
+        val profile = pngProfile(data) ?: return null
+        sanitizeProfileInPlace(profile, profile.size)
+        val out = ByteArrayOutputStream()
+        out.write(PNG_PROFILE_NAME.toByteArray(Charsets.ISO_8859_1))
+        out.write(0) // end of the name
+        out.write(0) // compression method: zlib, the only one PNG defines
+        DeflaterOutputStream(out).use { it.write(profile) }
+        return out.toByteArray()
+    }
+
+    /**
+     * The uncompressed profile in a PNG iCCP chunk: a 1–79 byte name, a NUL,
+     * compression method 0, then exactly one zlib stream. Null for anything
+     * else, including bytes left over after the stream.
+     */
+    fun pngProfile(data: ByteArray): ByteArray? {
+        val nameEnd = (1 until minOf(data.size, 80)).firstOrNull { data[it] == 0.toByte() }
+            ?: return null
+        val streamStart = nameEnd + 2
+        if (streamStart > data.size || data[nameEnd + 1] != 0.toByte()) return null
+        val inflater = Inflater()
+        return try {
+            inflater.setInput(data, streamStart, data.size - streamStart)
+            val out = ByteArrayOutputStream()
+            val buffer = ByteArray(8192)
+            while (!inflater.finished()) {
+                val read = inflater.inflate(buffer)
+                // Nothing out and not finished: truncated, or wants a preset
+                // dictionary PNG does not allow. Either way, unreadable.
+                if (read == 0 && !inflater.finished()) return null
+                out.write(buffer, 0, read)
+                if (out.size() > MAX_PROFILE_SIZE) return null
+            }
+            if (inflater.remaining != 0) null else out.toByteArray()
+        } catch (e: DataFormatException) {
+            null
+        } finally {
+            inflater.end()
+        }
     }
 
     /** Zeroes the identifying header fields and vendor text of an ICC profile. */

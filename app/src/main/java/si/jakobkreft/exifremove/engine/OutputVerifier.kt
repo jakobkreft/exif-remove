@@ -22,7 +22,9 @@ class VerificationException(message: String) : IOException(message)
  * nothing, and fails closed on anything it cannot account for.
  *
  * A content scan runs alongside it for metadata that survives *inside* an
- * otherwise well-formed segment, which a structural check cannot see.
+ * otherwise well-formed segment, which a structural check cannot see. Kept
+ * colour profiles are opened and checked too — in PNG they are compressed,
+ * where no byte scan can reach.
  */
 object OutputVerifier {
 
@@ -35,6 +37,8 @@ object OutputVerifier {
     )
 
     private const val EXIF_SIGNATURE = "Exif\u0000\u0000"
+
+    private const val PROFILE_NOT_CLEANED = "the colour profile still names the device or vendor"
 
     private class Signature(val bytes: ByteArray, val name: String)
 
@@ -87,6 +91,16 @@ object OutputVerifier {
     }
 
     private fun fail(problem: String): Nothing = throw VerificationException(problem)
+
+    /**
+     * Sanitizing is idempotent, so a cleaned profile is left unchanged by
+     * another pass. One that would still change was never cleaned.
+     */
+    private fun stillIdentifying(profile: ByteArray, sanitize: (ByteArray) -> Unit): Boolean {
+        val copy = profile.copyOf()
+        sanitize(copy)
+        return !copy.contentEquals(profile)
+    }
 
     private fun u8(b: ByteArray, i: Int) = b[i].toInt() and 0xFF
 
@@ -210,9 +224,13 @@ object OutputVerifier {
             }
             else -> "APP1 survived stripping"
         }
-        marker == 0xE2 ->
-            if (startsWith(b, start, length, "ICC_PROFILE\u0000")) null
-            else "a non-ICC APP2 segment survived stripping"
+        marker == 0xE2 -> when {
+            !startsWith(b, start, length, "ICC_PROFILE\u0000") ->
+                "a non-ICC APP2 segment survived stripping"
+            stillIdentifying(b.copyOfRange(start, start + length)) { IccSanitizer.sanitize(it) } ->
+                PROFILE_NOT_CLEANED
+            else -> null
+        }
         marker == 0xEE ->
             if (startsWith(b, start, length, "Adobe")) null
             else "a non-Adobe APP14 segment survived stripping"
@@ -307,12 +325,27 @@ object OutputVerifier {
                 (u8(b, crcPos.toInt() + 1).toLong() shl 16) or
                 (u8(b, crcPos.toInt() + 2).toLong() shl 8) or u8(b, crcPos.toInt() + 3).toLong())
             if (crc != stored) return "chunk $name has a bad CRC (possible hidden data)"
+            if (name == "iCCP") {
+                pngProfileProblem(b.copyOfRange(pos + 8, crcPos.toInt()))?.let { return it }
+            }
             pos = crcPos.toInt() + 4
             if (name == "IEND") {
                 return if (pos == b.size) null else "${b.size - pos} bytes of trailing data after IEND"
             }
         }
         return "output has no IEND chunk"
+    }
+
+    private fun pngProfileProblem(chunk: ByteArray): String? {
+        val profile = IccSanitizer.pngProfile(chunk)
+            ?: return "the iCCP colour profile cannot be read"
+        if (!startsWith(chunk, 0, chunk.size, IccSanitizer.PNG_PROFILE_NAME + "\u0000")) {
+            return "the iCCP chunk still carries its original profile name"
+        }
+        val identifying = stillIdentifying(profile) {
+            IccSanitizer.sanitizeProfileInPlace(it, it.size)
+        }
+        return if (identifying) PROFILE_NOT_CLEANED else null
     }
 
     // ----------------------------------------------------------------- WebP
@@ -338,6 +371,12 @@ object OutputVerifier {
             if (pos + 8 + padded > b.size) return "chunk $type overruns the end of the file"
             if (type !in WEBP_ALLOWED && !(keepExif && type == "EXIF")) {
                 return "chunk $type survived stripping"
+            }
+            if (type == "ICCP") {
+                val profile = b.copyOfRange(pos + 8, pos + 8 + size.toInt())
+                if (stillIdentifying(profile) { IccSanitizer.sanitizeProfileInPlace(it, it.size) }) {
+                    return PROFILE_NOT_CLEANED
+                }
             }
             if (type == "VP8X" && size >= 1) {
                 val flags = u8(b, pos + 8)

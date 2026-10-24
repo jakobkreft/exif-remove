@@ -9,6 +9,7 @@ import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.io.RandomAccessFile
+import java.util.zip.CRC32
 
 enum class ImageFormat { JPEG, PNG, WEBP, MP4, HEIF, UNSUPPORTED }
 
@@ -286,7 +287,8 @@ object MetadataStripper {
     )
 
     // Critical chunks + color handling + animation. Everything else
-    // (tEXt, zTXt, iTXt, eXIf, tIME, private chunks) is dropped.
+    // (tEXt, zTXt, iTXt, eXIf, tIME, private chunks) is dropped. iCCP is kept
+    // but rebuilt: its profile is compressed, so it is cleaned separately.
     private val PNG_KEEP = setOf(
         "IHDR", "PLTE", "IDAT", "IEND", "tRNS", "gAMA", "cHRM", "sRGB",
         "iCCP", "sBIT", "bKGD", "pHYs", "acTL", "fcTL", "fdAT"
@@ -313,13 +315,19 @@ object MetadataStripper {
             val type = String(typeBytes, Charsets.US_ASCII)
             val data = ByteArray(length)
             readFully(ins, data)
-            val crc = ByteArray(4)
-            readFully(ins, crc)
+            // The CRC is recomputed for whatever is written, so the input's
+            // four CRC bytes are never carried over.
+            skipFully(ins, 4)
 
-            if (type in PNG_KEEP || (keepExif && type == "eXIf")) {
-                outs.write(lenBytes); outs.write(typeBytes); outs.write(data); outs.write(crc)
-            } else {
+            val kept = when {
+                type == "iCCP" -> IccSanitizer.sanitizePngChunk(data)
+                type in PNG_KEEP || (keepExif && type == "eXIf") -> data
+                else -> null
+            }
+            if (kept == null) {
                 log?.droppedSegment(type, length.toLong())
+            } else {
+                writePngChunk(outs, typeBytes, kept)
             }
             if (type == "IEND") {
                 val trailing = drain(ins)
@@ -327,6 +335,21 @@ object MetadataStripper {
                 return
             }
         }
+    }
+
+    private fun writePngChunk(outs: OutputStream, typeBytes: ByteArray, data: ByteArray) {
+        val crc = CRC32().apply { update(typeBytes); update(data) }.value.toInt()
+        writeBeInt(outs, data.size)
+        outs.write(typeBytes)
+        outs.write(data)
+        writeBeInt(outs, crc)
+    }
+
+    private fun writeBeInt(outs: OutputStream, value: Int) {
+        outs.write((value shr 24) and 0xFF)
+        outs.write((value shr 16) and 0xFF)
+        outs.write((value shr 8) and 0xFF)
+        outs.write(value and 0xFF)
     }
 
     // ---------------------------------------------------------------- WebP

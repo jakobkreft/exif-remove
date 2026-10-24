@@ -15,6 +15,8 @@ import org.junit.rules.TemporaryFolder
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.zip.CRC32
+import java.util.zip.DeflaterOutputStream
+import java.util.zip.InflaterInputStream
 
 class MetadataStripperTest {
 
@@ -85,16 +87,55 @@ class MetadataStripperTest {
         return out.toByteArray()
     }
 
-    private fun buildPng(): ByteArray {
+    /**
+     * A 132-byte ICC profile whose header names the device, as a phone's
+     * does: maker and model at bytes 48-55, the profile creator at 80-83.
+     */
+    private fun vendorProfile(): ByteArray = ByteArray(132).also {
+        "GOOGPix9".toByteArray().copyInto(it, 48)
+        "GOOG".toByteArray().copyInto(it, 80)
+    }
+
+    /** PNG iCCP data: profile name, NUL, compression method 0, zlib stream. */
+    private fun iccpData(name: String, profile: ByteArray): ByteArray {
+        val out = ByteArrayOutputStream()
+        out.write(name.toByteArray(Charsets.ISO_8859_1))
+        out.write(byteArrayOf(0, 0))
+        DeflaterOutputStream(out).use { it.write(profile) }
+        return out.toByteArray()
+    }
+
+    /** A PNG holding nothing but [extra] between its header and image data. */
+    private fun minimalPng(vararg extra: ByteArray): ByteArray {
         val out = ByteArrayOutputStream()
         out.write(byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A))
         out.write(pngChunk("IHDR", ByteArray(13)))
-        out.write(pngChunk("tEXt", "Author\u0000secret".toByteArray()))
-        out.write(pngChunk("eXIf", ByteArray(8) { 0x42 }))
-        out.write(pngChunk("iCCP", "profile".toByteArray()))
-        out.write(pngChunk("IDAT", ByteArray(16) { 9 }))
+        extra.forEach { out.write(it) }
+        out.write(pngChunk("IDAT", ByteArray(4) { 9 }))
         out.write(pngChunk("IEND", ByteArray(0)))
         return out.toByteArray()
+    }
+
+    private fun buildPng(iccp: ByteArray = iccpData("Pixel 9 Pro", vendorProfile())): ByteArray =
+        minimalPng(
+            pngChunk("tEXt", "Author\u0000secret".toByteArray()),
+            pngChunk("eXIf", ByteArray(8) { 0x42 }),
+            pngChunk("iCCP", iccp),
+        )
+
+    /** The data of the first [type] chunk in [png], or null when there is none. */
+    private fun pngChunkData(png: ByteArray, type: String): ByteArray? {
+        var pos = 8
+        while (pos + 8 <= png.size) {
+            val length = ((png[pos].toInt() and 0xFF) shl 24) or
+                ((png[pos + 1].toInt() and 0xFF) shl 16) or
+                ((png[pos + 2].toInt() and 0xFF) shl 8) or (png[pos + 3].toInt() and 0xFF)
+            if (String(png, pos + 4, 4, Charsets.US_ASCII) == type) {
+                return png.copyOfRange(pos + 8, pos + 8 + length)
+            }
+            pos += 12 + length
+        }
+        return null
     }
 
     private fun webpChunk(fourcc: String, data: ByteArray): ByteArray {
@@ -110,15 +151,17 @@ class MetadataStripperTest {
         return out.toByteArray()
     }
 
-    private fun buildWebp(): ByteArray {
-        val body = ByteArrayOutputStream()
+    private fun buildWebp(): ByteArray = webpFile(
         // VP8X flags: ICC (0x20) + EXIF (0x08) + XMP (0x04)
-        body.write(webpChunk("VP8X", byteArrayOf(0x2C, 0, 0, 0, 9, 0, 0, 9, 0, 0)))
-        body.write(webpChunk("ICCP", ByteArray(6) { 7 }))
-        body.write(webpChunk("VP8 ", ByteArray(11) { 3 }))
-        body.write(webpChunk("EXIF", ByteArray(10) { 0x42 }))
-        body.write(webpChunk("XMP ", "meta".toByteArray()))
-        val bodyBytes = body.toByteArray()
+        webpChunk("VP8X", byteArrayOf(0x2C, 0, 0, 0, 9, 0, 0, 9, 0, 0)),
+        webpChunk("ICCP", ByteArray(6) { 7 }),
+        webpChunk("VP8 ", ByteArray(11) { 3 }),
+        webpChunk("EXIF", ByteArray(10) { 0x42 }),
+        webpChunk("XMP ", "meta".toByteArray()),
+    )
+
+    private fun webpFile(vararg chunks: ByteArray): ByteArray {
+        val bodyBytes = chunks.fold(ByteArray(0)) { acc, chunk -> acc + chunk }
         val out = ByteArrayOutputStream()
         out.write("RIFF".toByteArray(Charsets.US_ASCII))
         val riffLen = bodyBytes.size + 4
@@ -457,12 +500,72 @@ class MetadataStripperTest {
         val segments = findings.single { it.kind == FindingKind.METADATA_SEGMENT }
         assertTrue(segments.names.containsAll(listOf("tEXt", "eXIf")))
 
-        val minimal = ByteArrayOutputStream()
-        minimal.write(byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A))
-        minimal.write(pngChunk("IHDR", ByteArray(13)))
-        minimal.write(pngChunk("IDAT", ByteArray(4) { 9 }))
-        minimal.write(pngChunk("IEND", ByteArray(0)))
-        val (_, none) = stripWithLog(minimal.toByteArray())
+        val (_, none) = stripWithLog(minimalPng())
         assertTrue(none.isEmpty())
+    }
+
+    // ------------------------------------------------------ colour profiles
+
+    @Test
+    fun `a png colour profile is cleaned inside its compression`() {
+        val stripped = stripToBytes(buildPng())
+        val chunk = pngChunkData(stripped, "iCCP")
+        assertNotNull("the profile itself is kept", chunk)
+        // The encoder's free-text name is replaced, not just the profile.
+        val name = "${IccSanitizer.PNG_PROFILE_NAME}\u0000".toByteArray(Charsets.ISO_8859_1)
+        assertArrayEquals(name, chunk!!.copyOf(name.size))
+        assertFalse(stripped.containsSequence("Pixel".toByteArray()))
+
+        val profile = InflaterInputStream(chunk.inputStream(name.size + 1, chunk.size - name.size - 1))
+            .readBytes()
+        assertEquals(132, profile.size)
+        assertArrayEquals(ByteArray(8), profile.copyOfRange(48, 56)) // maker + model
+        assertArrayEquals(ByteArray(4), profile.copyOfRange(80, 84)) // creator
+    }
+
+    @Test
+    fun `an unreadable png colour profile is dropped rather than passed on`() {
+        val (stripped, findings) = stripWithLog(buildPng(iccp = "not zlib".toByteArray()))
+        assertNull(pngChunkData(stripped, "iCCP"))
+        val segments = findings.single { it.kind == FindingKind.METADATA_SEGMENT }
+        assertTrue(segments.names.contains("iCCP"))
+        val file = tmp.newFile().apply { writeBytes(stripped) }
+        assertNull(verificationProblem(ImageFormat.PNG, file))
+    }
+
+    @Test
+    fun `verifier looks inside a png colour profile`() {
+        // Well-formed and correctly named, but the profile was never cleaned.
+        val uncleaned = minimalPng(
+            pngChunk("iCCP", iccpData(IccSanitizer.PNG_PROFILE_NAME, vendorProfile()))
+        )
+        val problem = verificationProblem(ImageFormat.PNG, tmp.newFile().apply { writeBytes(uncleaned) })
+        assertTrue(problem, problem!!.contains("colour profile"))
+
+        // A clean profile still under the encoder's own name is caught too.
+        val clean = vendorProfile().also { IccSanitizer.sanitizeProfileInPlace(it, it.size) }
+        val named = minimalPng(pngChunk("iCCP", iccpData("Pixel 9 Pro", clean)))
+        assertNotNull(verificationProblem(ImageFormat.PNG, tmp.newFile().apply { writeBytes(named) }))
+    }
+
+    @Test
+    fun `verifier rejects an uncleaned colour profile in jpeg and webp`() {
+        val jpeg = ByteArrayOutputStream().apply {
+            write(byteArrayOf(0xFF.toByte(), 0xD8.toByte()))
+            write(jpegSegment(0xE2, "ICC_PROFILE\u0000".toByteArray() + byteArrayOf(1, 1) + vendorProfile()))
+            write(byteArrayOf(0xFF.toByte(), 0xDA.toByte(), 0x11, 0x22, 0xFF.toByte(), 0xD9.toByte()))
+        }.toByteArray()
+        val webp = webpFile(
+            webpChunk("VP8X", byteArrayOf(0x20, 0, 0, 0, 9, 0, 0, 9, 0, 0)),
+            webpChunk("ICCP", vendorProfile()),
+            webpChunk("VP8 ", ByteArray(11) { 3 }),
+        )
+        for ((format, bytes) in listOf(ImageFormat.JPEG to jpeg, ImageFormat.WEBP to webp)) {
+            val problem = verificationProblem(format, tmp.newFile().apply { writeBytes(bytes) })
+            assertTrue("$format: $problem", problem?.contains("colour profile") == true)
+            // ...and the stripper's output of the same file passes.
+            val cleaned = tmp.newFile().apply { writeBytes(stripToBytes(bytes)) }
+            assertNull("$format", verificationProblem(format, cleaned))
+        }
     }
 }
