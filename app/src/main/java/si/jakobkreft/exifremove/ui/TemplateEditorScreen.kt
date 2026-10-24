@@ -127,13 +127,13 @@ fun TemplateEditorScreen(
             CategoryRow(
                 label = stringResource(R.string.cat_gps),
                 value = gps,
-                options = listOf(RuleAction.KEEP, RuleAction.REMOVE, RuleAction.RANDOMIZE),
+                options = listOf(RuleAction.KEEP, RuleAction.RANDOMIZE, RuleAction.REMOVE),
                 onChange = { gps = it },
             )
             CategoryRow(
                 label = stringResource(R.string.cat_datetime),
                 value = dateTime,
-                options = listOf(RuleAction.KEEP, RuleAction.REMOVE, RuleAction.RANDOMIZE),
+                options = listOf(RuleAction.KEEP, RuleAction.RANDOMIZE, RuleAction.REMOVE),
                 onChange = { dateTime = it },
             )
             CategoryRow(
