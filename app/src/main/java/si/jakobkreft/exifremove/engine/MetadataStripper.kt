@@ -131,10 +131,8 @@ object MetadataStripper {
         outs.write(0xFF)
         outs.write(MARKER_SOI)
 
-
         while (true) {
-            var b = readByte(ins)
-            if (b != 0xFF) throw IOException("Corrupt JPEG: expected marker")
+            if (readByte(ins) != 0xFF) throw IOException("Corrupt JPEG: expected marker")
             var code = readByte(ins)
             while (code == 0xFF) code = readByte(ins) // fill bytes
 
@@ -409,12 +407,7 @@ object MetadataStripper {
     }
 
     private fun readFully(ins: InputStream, buffer: ByteArray) {
-        var offset = 0
-        while (offset < buffer.size) {
-            val read = ins.read(buffer, offset, buffer.size - offset)
-            if (read == -1) throw EOFException("Unexpected end of file")
-            offset += read
-        }
+        if (!tryReadFully(ins, buffer)) throw EOFException("Unexpected end of file")
     }
 
     private fun skipFully(ins: InputStream, count: Long) {

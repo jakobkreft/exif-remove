@@ -43,7 +43,7 @@ object Inspector {
                     null
                 }
                 Inspection(
-                    fileName = ExifProcessor.queryDisplayName(context, uri) ?: "?",
+                    fileName = ExifProcessor.querySource(context, uri).name ?: "?",
                     isVideo = format == ImageFormat.MP4,
                     before = before,
                     report = report,

@@ -5,9 +5,6 @@ package si.jakobkreft.exifremove.engine
 
 import java.io.RandomAccessFile
 
-/** Metadata category a piece of metadata belongs to, shared by all engines. */
-enum class MetaCategory { LOCATION, DATE, CAMERA, ORIENTATION, OTHER }
-
 /** Shared low-level ISO BMFF (MP4/MOV/3GP) box utilities. */
 internal object Mp4Boxes {
 

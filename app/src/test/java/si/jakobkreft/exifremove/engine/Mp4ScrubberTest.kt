@@ -102,7 +102,7 @@ class Mp4ScrubberTest {
     private fun scrubbed(template: Template): Pair<ByteArray, ByteArray> {
         val original = buildMp4()
         val file: File = tmp.newFile().apply { writeBytes(original) }
-        assertTrue(Mp4Scrubber.isMp4(file))
+        assertEquals(ImageFormat.MP4, MetadataStripper.detectFormat(file))
         Mp4Scrubber.scrub(file, template)
         return original to file.readBytes()
     }

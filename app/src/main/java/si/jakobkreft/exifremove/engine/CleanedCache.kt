@@ -33,10 +33,5 @@ object CleanedCache {
         }
     }
 
-    /** Deletes every cleaned file immediately, whatever its age. */
-    fun clear(context: Context) {
-        root(context).deleteRecursively()
-    }
-
     private fun root(context: Context) = File(context.cacheDir, DIR_NAME)
 }

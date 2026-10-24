@@ -32,7 +32,7 @@ object ImageMetadataReader {
         ExifInterface.TAG_JPEG_INTERCHANGE_FORMAT_LENGTH,
         ExifInterface.TAG_THUMBNAIL_IMAGE_WIDTH,
         ExifInterface.TAG_THUMBNAIL_IMAGE_LENGTH,
-        "ThumbnailOrientation", // library-internal constant; named directly
+        ExifProcessor.TAG_THUMBNAIL_ORIENTATION,
         ExifInterface.TAG_X_RESOLUTION,
         ExifInterface.TAG_Y_RESOLUTION,
         ExifInterface.TAG_RESOLUTION_UNIT,

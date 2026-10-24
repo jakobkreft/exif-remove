@@ -37,8 +37,8 @@ import androidx.compose.ui.unit.dp
 import si.jakobkreft.exifremove.InstallSource
 import si.jakobkreft.exifremove.R
 
-const val SOURCE_URL = "https://github.com/jakobkreft/exif-remove"
-const val SUPPORT_URL = "https://ko-fi.com/jakobk"
+private const val SOURCE_URL = "https://github.com/jakobkreft/exif-remove"
+private const val SUPPORT_URL = "https://ko-fi.com/jakobk"
 private const val PLAY_URL = "https://play.google.com/store/apps/details?id=si.jakobkreft.exifremove"
 private const val PLAY_MARKET_URL = "market://details?id=si.jakobkreft.exifremove"
 

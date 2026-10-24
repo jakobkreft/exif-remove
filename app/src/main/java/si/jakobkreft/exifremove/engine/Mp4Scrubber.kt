@@ -35,14 +35,6 @@ object Mp4Scrubber {
 
     private const val QT_EPOCH_OFFSET = 2082844800L // 1904-01-01 → 1970-01-01
 
-    fun isMp4(file: File): Boolean {
-        if (file.length() < 12) return false
-        val header = ByteArray(8)
-        file.inputStream().use { it.read(header) }
-        val type = String(header, 4, 4, Charsets.US_ASCII)
-        return type in setOf("ftyp", "moov", "mdat", "free", "skip", "wide")
-    }
-
     fun scrub(file: File, template: Template, log: StripLog? = null) {
         RandomAccessFile(file, "rw").use { raf ->
             val ctx = Context(
@@ -72,9 +64,9 @@ object Mp4Scrubber {
         forEachBox(ctx.raf, start, end) { box ->
             when (box.type) {
                 "moov" -> walkMoov(ctx, box)
-                "uuid" -> if (rule(ctx, MetaCategory.OTHER) == RuleAction.REMOVE) freeBox(ctx, box)
+                "uuid" -> if (ctx.template.ruleFor(MetaCategory.OTHER) == RuleAction.REMOVE) freeBox(ctx, box)
                 "free", "skip" ->
-                    if (rule(ctx, MetaCategory.OTHER) == RuleAction.REMOVE) zeroPayload(ctx, box)
+                    if (ctx.template.ruleFor(MetaCategory.OTHER) == RuleAction.REMOVE) zeroPayload(ctx, box)
                 else -> Unit // ftyp, mdat, moof, …
             }
         }
@@ -84,13 +76,12 @@ object Mp4Scrubber {
         forEachBox(ctx.raf, moov.payloadStart, moov.end) { box ->
             when (box.type) {
                 "mvhd", "tkhd", "mdhd" -> scrubTimestamps(ctx, box)
-                "trak" -> walkMoov(ctx, box) // same child handling
-                "mdia" -> walkMoov(ctx, box)
+                "trak", "mdia" -> walkMoov(ctx, box) // same child handling
                 "udta" -> walkUdta(ctx, box)
                 "meta" -> walkMeta(ctx, box)
-                "uuid" -> if (rule(ctx, MetaCategory.OTHER) == RuleAction.REMOVE) freeBox(ctx, box)
+                "uuid" -> if (ctx.template.ruleFor(MetaCategory.OTHER) == RuleAction.REMOVE) freeBox(ctx, box)
                 "free", "skip" ->
-                    if (rule(ctx, MetaCategory.OTHER) == RuleAction.REMOVE) zeroPayload(ctx, box)
+                    if (ctx.template.ruleFor(MetaCategory.OTHER) == RuleAction.REMOVE) zeroPayload(ctx, box)
                 else -> Unit // minf/stbl/edts etc. are structural; don't descend
             }
         }
@@ -103,7 +94,7 @@ object Mp4Scrubber {
                 return@forEachBox
             }
             val category = Mp4Boxes.fourCcCategory(box.type)
-            when (rule(ctx, category)) {
+            when (ctx.template.ruleFor(category)) {
                 RuleAction.REMOVE -> freeBox(ctx, box)
                 RuleAction.RANDOMIZE ->
                     if (category == MetaCategory.LOCATION && box.type == "©xyz") {
@@ -142,14 +133,14 @@ object Mp4Scrubber {
 
         // If nothing must survive, free the whole meta box — a plain 'free'
         // child of moov/udta/trak, which every parser skips safely.
-        if (entries.all { rule(ctx, it.category) == RuleAction.REMOVE }) {
+        if (entries.all { ctx.template.ruleFor(it.category) == RuleAction.REMOVE }) {
             freeBox(ctx, meta)
             return
         }
 
         // Otherwise keep the structure byte-for-byte and only blank values.
         for (entry in entries) {
-            when (rule(ctx, entry.category)) {
+            when (ctx.template.ruleFor(entry.category)) {
                 RuleAction.KEEP -> Unit
                 RuleAction.RANDOMIZE ->
                     if (entry.category == MetaCategory.LOCATION) {
@@ -160,14 +151,6 @@ object Mp4Scrubber {
                 RuleAction.REMOVE -> blankIlstEntry(ctx, entry.box)
             }
         }
-    }
-
-    private fun rule(ctx: Context, category: MetaCategory): RuleAction = when (category) {
-        MetaCategory.LOCATION -> ctx.template.gps
-        MetaCategory.DATE -> ctx.template.dateTime
-        MetaCategory.CAMERA -> ctx.template.cameraInfo
-        MetaCategory.ORIENTATION -> RuleAction.KEEP // structural for video
-        MetaCategory.OTHER -> ctx.template.otherExif
     }
 
     // ------------------------------------------------------------- editing
@@ -219,10 +202,7 @@ object Mp4Scrubber {
 
     /** mvhd/tkhd/mdhd: FullBox, creation+modification right after version/flags. */
     private fun scrubTimestamps(ctx: Context, box: Box) {
-        when (ctx.template.dateTime) {
-            RuleAction.KEEP -> return
-            RuleAction.REMOVE, RuleAction.RANDOMIZE -> Unit
-        }
+        if (ctx.template.dateTime == RuleAction.KEEP) return
         ctx.raf.seek(box.payloadStart)
         val version = ctx.raf.read()
         val value = if (ctx.template.dateTime == RuleAction.RANDOMIZE) ctx.randomTime else 0L

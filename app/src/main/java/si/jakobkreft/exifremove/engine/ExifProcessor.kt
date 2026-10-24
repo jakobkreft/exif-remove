@@ -64,7 +64,7 @@ data class CleaningProgress(
 }
 
 /** A source file's name and size, queried once up front. */
-private class SourceInfo(val uri: Uri, val name: String?, val size: Long)
+internal class SourceInfo(val uri: Uri, val name: String?, val size: Long)
 
 object ExifProcessor {
 
@@ -107,7 +107,7 @@ object ExifProcessor {
         withContext(Dispatchers.Main) { onProgress(progress) }
     }
 
-    private fun querySource(context: Context, uri: Uri): SourceInfo {
+    internal fun querySource(context: Context, uri: Uri): SourceInfo {
         var name: String? = null
         var size = 0L
         try {
@@ -278,7 +278,7 @@ object ExifProcessor {
      * tag name is spelled out rather than referencing a restricted constant
      * that could disappear in a library update.
      */
-    private const val TAG_THUMBNAIL_ORIENTATION = "ThumbnailOrientation"
+    internal const val TAG_THUMBNAIL_ORIENTATION = "ThumbnailOrientation"
 
     internal val DATE_TAGS = setOf(
         ExifInterface.TAG_DATETIME,
@@ -545,7 +545,7 @@ object ExifProcessor {
 
     /**
      * Cleans a media file on disk — the single engine behind both the share
-     * flow and the inspector. Returns false when the format is unsupported.
+     * flow and the inspector. Returns null when the format is unsupported.
      */
     internal fun cleanFile(
         source: File,
@@ -569,7 +569,7 @@ object ExifProcessor {
                 // Read before stripping: the map lives past the end of the image,
                 // which the strip is about to discard.
                 val gainMap = if (template.gainMap == RuleAction.KEEP && format == ImageFormat.JPEG) {
-                    GainMap.find(source)?.let { GainMap.read(source, it) }
+                    GainMap.read(source)
                 } else {
                     null
                 }
@@ -580,11 +580,11 @@ object ExifProcessor {
                 } else if (exifWrittenBack) {
                     copyBackKeptTags(source, dest, template)
                 }
-                // Last line of defence: prove the produced file is metadata-free
-                // rather than trusting that the strip did what it intended.
                 // Last, so no later rewrite can discard it.
                 if (gainMap != null) GainMap.attach(dest, gainMap)
 
+                // Last line of defence: prove the produced file is metadata-free
+                // rather than trusting that the strip did what it intended.
                 if (verify) {
                     OutputVerifier.verify(
                         format, dest,
@@ -633,15 +633,4 @@ object ExifProcessor {
 
     private fun stripExtension(name: String): String =
         name.substringBeforeLast('.', name)
-
-    internal fun queryDisplayName(context: Context, uri: Uri): String? {
-        return try {
-            context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
-                ?.use { cursor ->
-                    if (cursor.moveToFirst()) cursor.getString(0) else null
-                }
-        } catch (e: Exception) {
-            uri.lastPathSegment
-        }
-    }
 }

@@ -10,18 +10,21 @@ import si.jakobkreft.exifremove.data.RuleAction
 import si.jakobkreft.exifremove.data.Template
 
 @Composable
-fun templateSummary(template: Template): String {
-    @Composable
-    fun action(action: RuleAction): String = when (action) {
-        RuleAction.KEEP -> stringResource(R.string.action_keep)
-        RuleAction.REMOVE -> stringResource(R.string.action_remove)
-        RuleAction.RANDOMIZE -> stringResource(R.string.action_randomize)
+fun RuleAction.label(): String = stringResource(
+    when (this) {
+        RuleAction.KEEP -> R.string.action_keep
+        RuleAction.REMOVE -> R.string.action_remove
+        RuleAction.RANDOMIZE -> R.string.action_randomize
     }
+)
+
+@Composable
+fun templateSummary(template: Template): String {
     val main = listOf(
-        stringResource(R.string.sum_location) to action(template.gps),
-        stringResource(R.string.sum_date) to action(template.dateTime),
-        stringResource(R.string.sum_camera) to action(template.cameraInfo),
-        stringResource(R.string.sum_other) to action(template.otherExif),
+        stringResource(R.string.sum_location) to template.gps.label(),
+        stringResource(R.string.sum_date) to template.dateTime.label(),
+        stringResource(R.string.sum_camera) to template.cameraInfo.label(),
+        stringResource(R.string.sum_other) to template.otherExif.label(),
     ).joinToString(" · ") { (label, act) -> "$label: $act" }
 
     // Six categories make an unreadable subtitle, so the two that exist only

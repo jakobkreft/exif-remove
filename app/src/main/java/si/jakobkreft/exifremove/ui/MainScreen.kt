@@ -52,6 +52,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -149,72 +151,24 @@ fun MainScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {
-                Card(
+                ActionCard(
+                    icon = Icons.Filled.AddPhotoAlternate,
+                    title = stringResource(R.string.clean_images),
+                    description = stringResource(R.string.clean_images_desc),
+                    container = MaterialTheme.colorScheme.primaryContainer,
+                    content = MaterialTheme.colorScheme.onPrimaryContainer,
                     onClick = onCleanImages,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    ),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(20.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    ) {
-                        Icon(
-                            Icons.Filled.AddPhotoAlternate,
-                            contentDescription = null,
-                            modifier = Modifier.size(32.dp),
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        )
-                        Column {
-                            Text(
-                                stringResource(R.string.clean_images),
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            )
-                            Text(
-                                stringResource(R.string.clean_images_desc),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            )
-                        }
-                    }
-                }
+                )
             }
             item {
-                Card(
+                ActionCard(
+                    icon = Icons.Outlined.Policy,
+                    title = stringResource(R.string.view_metadata),
+                    description = stringResource(R.string.view_metadata_desc),
+                    container = MaterialTheme.colorScheme.secondaryContainer,
+                    content = MaterialTheme.colorScheme.onSecondaryContainer,
                     onClick = onInspect,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    ),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(20.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    ) {
-                        Icon(
-                            Icons.Outlined.Policy,
-                            contentDescription = null,
-                            modifier = Modifier.size(32.dp),
-                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                        )
-                        Column {
-                            Text(
-                                stringResource(R.string.view_metadata),
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            )
-                            Text(
-                                stringResource(R.string.view_metadata_desc),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            )
-                        }
-                    }
-                }
+                )
             }
             item {
                 Text(
@@ -227,9 +181,8 @@ fun MainScreen(
                 TemplateCard(
                     template = template,
                     isDefault = template.id == state.defaultTemplateId,
-                    onClick = { onEditTemplate(template.id) },
-                    onSetDefault = { onSetDefault(template.id) },
                     onEdit = { onEditTemplate(template.id) },
+                    onSetDefault = { onSetDefault(template.id) },
                     onDelete = { pendingDelete = template },
                 )
             }
@@ -257,16 +210,43 @@ fun MainScreen(
 }
 
 @Composable
+private fun ActionCard(
+    icon: ImageVector,
+    title: String,
+    description: String,
+    container: Color,
+    content: Color,
+    onClick: () -> Unit,
+) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = container, contentColor = content),
+    ) {
+        Row(
+            modifier = Modifier.padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(32.dp))
+            Column {
+                Text(title, style = MaterialTheme.typography.titleMedium)
+                Text(description, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+    }
+}
+
+@Composable
 private fun TemplateCard(
     template: Template,
     isDefault: Boolean,
-    onClick: () -> Unit,
-    onSetDefault: () -> Unit,
     onEdit: () -> Unit,
+    onSetDefault: () -> Unit,
     onDelete: () -> Unit,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
-    Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+    Card(onClick = onEdit, modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,

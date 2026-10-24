@@ -265,7 +265,7 @@ class ExifProcessorTest {
     fun `the gain map is dropped unless the template asks for it`() {
         val out = tmp.newFile("hdr_dropped.jpg")
         ExifProcessor.cleanFile(photoWithGainMap(), out, Template(id = "t", name = "t"))
-        assertNull(GainMap.find(out))
+        assertNull(GainMap.read(out))
     }
 
     @Test
@@ -283,7 +283,7 @@ class ExifProcessorTest {
             ),
         )
         assertNotNull(report)
-        assertNotNull(GainMap.find(out))
+        assertNotNull(GainMap.read(out))
         assertNull(ExifInterface(out.absolutePath).latLong)
     }
 
@@ -294,7 +294,7 @@ class ExifProcessorTest {
             photoWithGainMap(), out,
             Template(id = "t", name = "t", gainMap = RuleAction.KEEP),
         )
-        val found = GainMap.find(out)
+        val found = GainMap.read(out)
         assertNotNull(found)
         assertNull(ExifInterface(out.absolutePath).getAttribute(ExifInterface.TAG_MAKE))
     }

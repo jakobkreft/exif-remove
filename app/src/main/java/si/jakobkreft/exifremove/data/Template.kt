@@ -11,7 +11,7 @@ enum class RuleAction { KEEP, REMOVE, RANDOMIZE }
 /**
  * A cleaning template. Each category of metadata gets an action.
  * XMP, IPTC, comments and embedded thumbnails are always removed;
- * ICC color profiles are always kept.
+ * ICC color profiles are always kept, minus the fields naming the device.
  */
 @Serializable
 data class Template(

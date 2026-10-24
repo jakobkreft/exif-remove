@@ -97,7 +97,7 @@ object OutputVerifier {
     private fun signatureProblem(
         bytes: ByteArray,
         keepExif: Boolean,
-        proven: List<IntRange> = emptyList(),
+        proven: List<IntRange>,
     ): String? {
         for (start in bytes.indices) {
             if (!SIGNATURE_START[bytes[start].toInt() and 0xFF]) continue
@@ -127,8 +127,8 @@ object OutputVerifier {
     private fun jpegProblem(
         b: ByteArray,
         keepExif: Boolean,
-        gainMapBytes: Int = 0,
-        proven: MutableList<IntRange> = mutableListOf(),
+        gainMapBytes: Int,
+        proven: MutableList<IntRange>,
     ): String? {
         if (b.size < 2 || u8(b, 0) != 0xFF || u8(b, 1) != 0xD8) {
             return "output does not start with a start-of-image marker"

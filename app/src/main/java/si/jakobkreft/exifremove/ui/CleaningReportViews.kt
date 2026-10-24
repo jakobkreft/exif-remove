@@ -40,7 +40,6 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import si.jakobkreft.exifremove.R
-import si.jakobkreft.exifremove.engine.ChangeStatus
 import si.jakobkreft.exifremove.engine.CleaningReport
 import si.jakobkreft.exifremove.engine.Finding
 import si.jakobkreft.exifremove.engine.FindingKind

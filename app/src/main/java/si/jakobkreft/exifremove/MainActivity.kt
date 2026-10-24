@@ -96,9 +96,7 @@ private fun AppNavigation() {
         SCREEN_HOME -> MainScreen(
             state = appState,
             onCleanImages = {
-                if (MediaAccess.hasFullAccess(context) ||
-                    MediaAccess.requiredPermissions().isEmpty()
-                ) {
+                if (MediaAccess.hasFullAccess(context)) {
                     pickMedia.launch(arrayOf("image/*", "video/*"))
                 } else {
                     mediaPermissions.launch(MediaAccess.requiredPermissions())

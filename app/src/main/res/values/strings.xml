@@ -18,11 +18,6 @@
     <string name="about">About</string>
     <string name="back">Back</string>
 
-    <!-- Built-in template names -->
-    <string name="tpl_remove_everything">Remove everything</string>
-    <string name="tpl_remove_location_only">Remove location only</string>
-    <string name="tpl_scramble_location_date">Scramble location &amp; date</string>
-
     <!-- Categories -->
     <string name="cat_gps">Location (GPS)</string>
     <string name="cat_datetime">Date &amp; time</string>

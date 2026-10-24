@@ -25,25 +25,20 @@ import java.io.File
  */
 internal object GainMap {
 
-    class Info(val offset: Int, val length: Int)
-
     private const val XMP_HEADER = "http://ns.adobe.com/xap/1.0/\u0000"
     private const val HDRGM_NAMESPACE = "http://ns.adobe.com/hdr-gain-map/1.0/"
 
     /**
-     * Finds a gain map appended to [file], or null when there is none.
-     * A trailer only counts when it is a JPEG that declares `hdrgm`; a motion
-     * photo's video, or any other appended payload, is not a gain map.
+     * The gain map appended to [file], or null when there is none. A trailer
+     * only counts when it is a JPEG that declares `hdrgm`; a motion photo's
+     * video, or any other appended payload, is not a gain map.
      */
-    fun find(file: File): Info? = try {
+    fun read(file: File): ByteArray? = try {
         val bytes = file.readBytes()
-        val end = primaryEnd(bytes) ?: return null
-        if (end >= bytes.size) return null
-        val trailer = bytes.copyOfRange(end, bytes.size)
-        val length = jpegLength(trailer) ?: return null
-        val candidate = trailer.copyOfRange(0, length)
-        if (!contains(candidate, HDRGM_NAMESPACE.toByteArray(Charsets.ISO_8859_1))) return null
-        Info(end, length)
+        val primaryEnd = jpegEnd(bytes, 0) ?: return null
+        val mapEnd = jpegEnd(bytes, primaryEnd) ?: return null
+        val map = bytes.copyOfRange(primaryEnd, mapEnd)
+        if (contains(map, HDRGM_NAMESPACE.toByteArray(Charsets.ISO_8859_1))) map else null
     } catch (e: Exception) {
         null
     }
@@ -71,12 +66,6 @@ internal object GainMap {
             out.write(cleaned, 2, cleaned.size - 2)
             out.write(map)
         }
-    }
-
-    /** Reads the gain map's bytes out of [file]. */
-    fun read(file: File, info: Info): ByteArray {
-        val bytes = file.readBytes()
-        return bytes.copyOfRange(info.offset, info.offset + info.length)
     }
 
     /**
@@ -175,10 +164,10 @@ internal object GainMap {
 
     private fun u8(b: ByteArray, i: Int) = b[i].toInt() and 0xFF
 
-    /** Offset just past the primary image's end-of-image marker. */
-    private fun primaryEnd(b: ByteArray): Int? {
-        if (b.size < 4 || u8(b, 0) != 0xFF || u8(b, 1) != 0xD8) return null
-        var pos = 2
+    /** Offset just past the end-of-image marker of the JPEG starting at [start]. */
+    private fun jpegEnd(b: ByteArray, start: Int): Int? {
+        if (b.size - start < 4 || u8(b, start) != 0xFF || u8(b, start + 1) != 0xD8) return null
+        var pos = start + 2
         while (pos + 1 < b.size) {
             if (u8(b, pos) != 0xFF) return null
             val marker = u8(b, pos + 1)
@@ -203,9 +192,6 @@ internal object GainMap {
         }
         return null
     }
-
-    /** Length of the JPEG starting at the beginning of [b], if it is one. */
-    private fun jpegLength(b: ByteArray): Int? = primaryEnd(b)
 
     private fun startsWith(b: ByteArray, start: Int, length: Int, prefix: String): Boolean {
         if (length < prefix.length) return false

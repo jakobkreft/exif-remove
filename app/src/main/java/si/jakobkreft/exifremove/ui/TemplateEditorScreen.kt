@@ -105,10 +105,9 @@ fun TemplateEditorScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp),
+                .padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 44.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            Spacer(Modifier.height(0.dp))
             OutlinedTextField(
                 value = name,
                 onValueChange = {
@@ -181,7 +180,6 @@ fun TemplateEditorScreen(
                     )
                 }
             }
-            Spacer(Modifier.height(24.dp))
         }
     }
 }
@@ -203,15 +201,7 @@ private fun CategoryRow(
                     onClick = { onChange(option) },
                     shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
                 ) {
-                    Text(
-                        stringResource(
-                            when (option) {
-                                RuleAction.KEEP -> R.string.action_keep
-                                RuleAction.REMOVE -> R.string.action_remove
-                                RuleAction.RANDOMIZE -> R.string.action_randomize
-                            }
-                        )
-                    )
+                    Text(option.label())
                 }
             }
         }

@@ -30,7 +30,6 @@ import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material.icons.outlined.Schedule
-import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card

@@ -64,12 +64,4 @@ object MetadataDiff {
 
         return changes + added
     }
-
-    fun Template.ruleFor(category: MetaCategory): RuleAction = when (category) {
-        MetaCategory.LOCATION -> gps
-        MetaCategory.DATE -> dateTime
-        MetaCategory.CAMERA -> cameraInfo
-        MetaCategory.ORIENTATION -> otherExif
-        MetaCategory.OTHER -> otherExif
-    }
 }

@@ -55,13 +55,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import si.jakobkreft.exifremove.R
 import si.jakobkreft.exifremove.data.AppState
-import si.jakobkreft.exifremove.data.Template
 import si.jakobkreft.exifremove.engine.Inspection
 import si.jakobkreft.exifremove.engine.MediaAccess
 import si.jakobkreft.exifremove.engine.Inspector
 import si.jakobkreft.exifremove.engine.MetaCategory
 import si.jakobkreft.exifremove.engine.ChangeStatus
-import si.jakobkreft.exifremove.engine.Finding
 import si.jakobkreft.exifremove.engine.MetaChange
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -97,9 +95,7 @@ fun InspectorScreen(
     ) { picker.launch(arrayOf("image/*", "video/*")) }
 
     fun pick() {
-        if (MediaAccess.hasFullAccess(context) ||
-            MediaAccess.requiredPermissions().isEmpty()
-        ) {
+        if (MediaAccess.hasFullAccess(context)) {
             picker.launch(arrayOf("image/*", "video/*"))
         } else {
             mediaPermissions.launch(MediaAccess.requiredPermissions())
@@ -260,12 +256,7 @@ private fun InspectionResult(
                     FilterChip(
                         selected = true,
                         onClick = { templateMenuOpen = true },
-                        label = {
-                            Text(
-                                state.templates
-                                    .firstOrNull { it.id == selectedTemplateId }?.name ?: "?"
-                            )
-                        },
+                        label = { Text(template.name) },
                         trailingIcon = { Icon(Icons.Filled.ArrowDropDown, null) },
                     )
                     DropdownMenu(
@@ -286,38 +277,10 @@ private fun InspectionResult(
             }
         }
         if (redactedSource) {
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    ),
-                ) {
-                    Text(
-                        stringResource(R.string.inspector_redaction_note),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                        modifier = Modifier.padding(16.dp),
-                    )
-                }
-            }
+            item { NoteCard(stringResource(R.string.inspector_redaction_note)) }
         }
         if (result.report == null) {
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    ),
-                ) {
-                    Text(
-                        stringResource(R.string.inspector_unsupported_note),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                        modifier = Modifier.padding(16.dp),
-                    )
-                }
-            }
+            item { NoteCard(stringResource(R.string.inspector_unsupported_note)) }
         }
 
         // Removals a tag listing cannot show, because once they are gone
@@ -345,5 +308,22 @@ private fun InspectionResult(
                 MetaChangeRow(row)
             }
         }
+    }
+}
+
+@Composable
+private fun NoteCard(text: String) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+        ),
+    ) {
+        Text(
+            text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSecondaryContainer,
+            modifier = Modifier.padding(16.dp),
+        )
     }
 }
