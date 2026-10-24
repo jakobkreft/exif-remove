@@ -1,6 +1,7 @@
 <resources>
     <string name="app_name">EXIF Remove</string>
     <string name="share_target_label">EXIF Remove</string>
+    <string name="pick_target_label">EXIF Remove (cleaned)</string>
 
     <!-- Main screen -->
     <string name="templates">Templates</string>
@@ -53,6 +54,13 @@
     <string name="setting_random_filename_desc">Rename cleaned files (file names can reveal information)</string>
     <string name="setting_convert_unsupported">Convert unsupported formats</string>
     <string name="setting_convert_unsupported_desc">Re-encode image formats that can\'t be cleaned in place (such as HEIC) to JPEG. Images only</string>
+    <string name="setting_picker">Show in file picker</string>
+    <string name="setting_picker_desc">Offer cleaned photos and videos as a source when another app or website asks for a file</string>
+    <string name="setting_picker_browse">Browse other apps from the picker</string>
+    <string name="setting_picker_browse_desc">Adds an entry that opens the system picker itself, so a file from Drive or another app can be cleaned too. Some pickers list an app once — turn the setting above off if this entry does not appear</string>
+    <string name="picker_root_summary">Cleaned photos and videos</string>
+    <string name="picker_choose_template">Choose what to remove, then pick a file</string>
+    <string name="picker_needs_permission">Open EXIF Remove and grant access to photos and videos</string>
     <string name="setting_verify">Verify cleaned files</string>
     <string name="setting_verify_desc">Re-read every cleaned image and withhold it if any metadata survived. Turning this off is a little faster, but you lose the guarantee</string>
 
@@ -73,6 +81,10 @@
         <item quantity="other">%d files failed</item>
     </plurals>
     <string name="share">Share</string>
+    <plurals name="use_n_files">
+        <item quantity="one">Use cleaned file</item>
+        <item quantity="other">Use cleaned files</item>
+    </plurals>
     <string name="save_to_gallery">Save to gallery</string>
     <string name="saved_to_gallery">Saved to gallery</string>
     <string name="nothing_to_share">No files were received</string>
