@@ -1,0 +1,173 @@
+<resources>
+    <string name="app_name">EXIF remove</string>
+    <string name="share_target_label">EXIF remove</string>
+
+    <!-- Main screen -->
+    <string name="templates">範本</string>
+    <string name="clean_images">清除相片與影片</string>
+    <string name="clean_images_desc">選擇相片或影片、清除其中繼資料並分享</string>
+    <string name="new_template">新增範本</string>
+    <string name="default_template">預設</string>
+    <string name="set_as_default">設為預設</string>
+    <string name="edit">編輯</string>
+    <string name="delete">刪除</string>
+    <string name="more_options">更多選項</string>
+    <string name="restore_default_templates">還原預設範本</string>
+    <string name="default_templates_restored">已還原預設範本</string>
+    <string name="settings">設定</string>
+    <string name="about">關於</string>
+    <string name="back">返回</string>
+
+    <!-- Categories -->
+    <string name="cat_gps">位置 (GPS)</string>
+    <string name="cat_datetime">日期與時間</string>
+    <string name="cat_camera">相機、軟體與作者</string>
+    <string name="cat_other">其他中繼資料</string>
+    <string name="cat_orientation">方向</string>
+    <string name="cat_gainmap">HDR 增益圖</string>
+
+    <!-- Actions -->
+    <string name="action_keep">保留</string>
+    <string name="action_remove">移除</string>
+    <string name="action_randomize">隨機化</string>
+
+    <!-- Template editor -->
+    <string name="edit_template">編輯範本</string>
+    <string name="template_name">範本名稱</string>
+    <string name="template_name_empty">名稱不可為空</string>
+    <string name="save">儲存</string>
+    <string name="cancel">取消</string>
+    <string name="always_removed_note">XMP, IPTC, comments and embedded thumbnails are always removed; ICC color profiles are kept, so colors never change. Orientation and the HDR gain map carry nothing identifying, but dropping them can make a photo look rotated or flat. Videos (MP4, MOV, 3GP) are cleaned in place and streams are never re-encoded.</string>
+    <string name="delete_template_title">刪除範本?</string>
+    <string name="delete_template_message">“%1$s”將被移除。內建的範本可在「還原預設範本」恢復。</string>
+
+    <!-- Settings -->
+    <string name="setting_skip_dialog">跳過範本選擇畫面</string>
+    <string name="setting_skip_dialog_desc">分享時，立即使用預設範本清理檔案</string>
+    <string name="setting_random_filename">隨機檔案名稱</string>
+    <string name="setting_random_filename_desc">重新命名已清理的檔案（檔案名稱可能洩漏資訊）</string>
+    <string name="setting_convert_unsupported">轉換不支援的格式</string>
+    <string name="setting_convert_unsupported_desc">Re-encode image formats that can\'t be cleaned in place (such as HEIC) to JPEG. Images only</string>
+    <string name="setting_verify">驗證已清理的檔案</string>
+    <string name="setting_verify_desc">Re-read every cleaned image and withhold it if any metadata survived. Turning this off is a little faster, but you lose the guarantee</string>
+
+    <!-- Share flow -->
+    <plurals name="clean_n_images">
+        <item quantity="one">清理 %d 個檔案</item>
+        <item quantity="other">清理 %d 個檔案</item>
+    </plurals>
+    <string name="choose_template">選擇範本</string>
+    <string name="processing">正在清理…</string>
+    <string name="cleaning_n_of_m">正在清理第 %1$d 個（ 共 %2$d 個）</string>
+    <plurals name="n_images_ready">
+        <item quantity="one">已清理 %d 個檔案</item>
+        <item quantity="other">已清理 %d 個檔案</item>
+    </plurals>
+    <plurals name="n_images_failed">
+        <item quantity="one">%d 個檔案失敗</item>
+        <item quantity="other">%d 個檔案失敗</item>
+    </plurals>
+    <string name="share">分享</string>
+    <string name="save_to_gallery">儲存至相簿</string>
+    <string name="saved_to_gallery">已儲存至相簿</string>
+    <string name="nothing_to_share">未收到任何檔案</string>
+    <string name="nothing_could_be_cleaned">沒有任何檔案可被清理</string>
+    <string name="error_unsupported_format">不支援的格式</string>
+    <string name="error_could_not_read">無法讀取圖片</string>
+
+    <!-- Cleaning report -->
+    <string name="verified_clean">Verified clean</string>
+    <string name="verified_clean_desc">Each cleaned file was re-parsed from scratch and contains no metadata. Anything that could not be proven clean was withheld.</string>
+    <string name="error_not_provably_clean">Withheld: could not be proven clean</string>
+    <string name="error_not_provably_clean_desc">Something survived cleaning that shouldn\'t have, so this file was deleted rather than shared. Please report it.</string>
+    <plurals name="n_files_withheld">
+        <item quantity="one">%d file withheld</item>
+        <item quantity="other">%d files withheld</item>
+    </plurals>
+    <string name="report_nothing_found">未發現中繼資料 — 已經乾淨</string>
+    <string name="report_show_details">顯示已移除的項目</string>
+    <string name="report_hide_details">隱藏詳細資料</string>
+    <plurals name="report_removed_n">
+        <item quantity="one">已移除 %d 個項目</item>
+        <item quantity="other">已移除 %d 個項目</item>
+    </plurals>
+    <plurals name="report_scrambled_n">
+        <item quantity="one">已隨機化 %d 個項目</item>
+        <item quantity="other">已隨機化 %d 個項目</item>
+    </plurals>
+    <plurals name="report_kept_n">
+        <item quantity="one">已保留 %d 個項目</item>
+        <item quantity="other">已保留 %d 個項目</item>
+    </plurals>
+    <string name="report_hidden_payload">%1$s hidden</string>
+    <string name="report_findings">Also removed</string>
+    <string name="report_reencoded_short">已重新編碼為乾淨的 JPEG</string>
+
+    <!-- Structural findings -->
+    <string name="finding_trailing_video">A video hidden after the image (%1$s) — a motion photo keeps one, and it carries its own location, timestamp and device name</string>
+    <string name="finding_trailing_image">A second image hidden after the first (%1$s) — such as an Ultra HDR gain map, carrying its own copy of the metadata</string>
+    <string name="finding_trailing_unknown">%1$s of data appended after the end of the image</string>
+    <string name="finding_thumbnail">An embedded thumbnail (%1$s) — a small but complete copy of the original picture</string>
+    <plurals name="finding_segments">
+        <item quantity="one">%1$d metadata segment removed (%2$s)</item>
+        <item quantity="other">%1$d metadata segments removed (%2$s)</item>
+    </plurals>
+    <plurals name="finding_video_boxes">
+        <item quantity="one">%d metadata box cleared inside the video</item>
+        <item quantity="other">%d metadata boxes cleared inside the video</item>
+    </plurals>
+    <string name="finding_reencoded">Re-encoded as a fresh JPEG — this format stores metadata in a way that cannot be stripped in place, so the picture was rebuilt from decoded pixels</string>
+
+    <!-- Short category labels for template summaries -->
+    <string name="sum_location">位置</string>
+    <string name="sum_date">日期</string>
+    <string name="sum_camera">相機</string>
+    <string name="sum_orientation">方向</string>
+    <string name="sum_other">其他</string>
+    <string name="sum_keeps_orientation">保留方向</string>
+    <string name="sum_keeps_hdr">保留 HDR</string>
+
+    <!-- Metadata viewer -->
+    <string name="view_metadata">檢視中繼資料</string>
+    <string name="view_metadata_desc">檢查檔案並預覽範本會移除的內容</string>
+    <string name="inspector_intro">選擇照片或影片來查看它包含的中繼資料 — 以及清理後會保留的內容。</string>
+    <string name="pick_file">選擇照片或影片</string>
+    <string name="pick_another">選擇其他檔案</string>
+    <string name="inspector_template">使用範本預覽</string>
+    <string name="inspector_summary">%1$d 個項目 → 將保留 %2$d 個</string>
+    <string name="status_removed">已移除</string>
+    <string name="status_kept">已保留</string>
+    <string name="status_randomized">已隨機化</string>
+    <string name="status_modified">已修改</string>
+    <string name="status_added">已新增</string>
+    <string name="inspector_unsupported_note">此格式無法直接清理。分享時會轉換為新的 JPEG 格式，藉此刪除所有中繼資料。</string>
+    <string name="inspector_no_metadata">未發現中繼資料 — 此檔案已經乾淨。</string>
+    <string name="inspector_could_not_read">無法讀取此檔案。</string>
+    <string name="inspector_findings_note">除上述項目外， 清理此檔案還會移除：</string>
+    <string name="inspector_redaction_note">Android 會隱藏媒體檔案中的位置資料，避免未獲相片存取權限的應用程式讀取。授予 EXIF Remove 相片和影片存取權限即可查看原始位置資料。</string>
+
+    <!-- Onboarding -->
+    <string name="tutorial">教學</string>
+    <string name="skip">跳過</string>
+    <string name="next">下一步</string>
+    <string name="get_started">開始使用</string>
+    <string name="onb1_title">Your photos talk</string>
+    <string name="onb1_body">Every photo and video quietly records details about you. Anyone you share it with can read them.</string>
+    <string name="onb1_where">你當時所在的位置</string>
+    <string name="onb1_when">拍攝的時間</string>
+    <string name="onb1_what">你擁有的裝置</string>
+    <string name="onb2_title">先分享到這裡</string>
+    <string name="onb2_body">在任何應用程式中選擇相片或影片並分享至 EXIF Remove  — 或開啟此應用程式直接選擇檔案。</string>
+    <string name="onb3_title">由範本決定</string>
+    <string name="onb3_body">範本會設定如何處理各項中繼資料：保留、移除或替換為隨機值。你可以使用內建範本或自行建立範本。</string>
+    <string name="onb4_title">分享乾淨的副本</string>
+    <string name="onb4_body">你會立即獲得清理後的副本以供轉發 — 原始檔案絕不會更動。所有處理都在設備上進行，並可使用內建中繼資料檢視器自行驗證。</string>
+
+    <!-- About -->
+    <string name="about_description">在分享前移除相片和影片中的中繼資料。自由軟體，採用 GNU GPL v3 或更新。</string>
+    <string name="version">版本 %1$s</string>
+    <string name="source_code">原始碼</string>
+    <string name="support">透過 Ko-fi 支持</string>
+    <string name="rate_on_play">在 Google Play 評分</string>
+    <string name="license">授權： GNU GPL v3.0 或更新</string>
+</resources>
