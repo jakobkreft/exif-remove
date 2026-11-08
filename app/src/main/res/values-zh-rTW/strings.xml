@@ -37,7 +37,7 @@
     <string name="template_name_empty">名稱不可為空</string>
     <string name="save">儲存</string>
     <string name="cancel">取消</string>
-    <string name="always_removed_note">XMP, IPTC, comments and embedded thumbnails are always removed; ICC color profiles are kept, so colors never change. Orientation and the HDR gain map carry nothing identifying, but dropping them can make a photo look rotated or flat. Videos (MP4, MOV, 3GP) are cleaned in place and streams are never re-encoded.</string>
+    <string name="always_removed_note">XMP、IPTC、註解和內嵌縮圖一律會被移除；ICC 色彩描述檔則會保留，因此色彩不會改變。方向和 HDR 增益圖不包含任何可識別資訊，但移除後可能會讓相片看起來被旋轉或顯得平淡。影片（MP4, MOV, 3GP）會直接清理且不會重新編碼串流。</string>
     <string name="delete_template_title">刪除範本?</string>
     <string name="delete_template_message">“%1$s”將被移除。內建的範本可在「還原預設範本」恢復。</string>
 
@@ -47,7 +47,7 @@
     <string name="setting_random_filename">隨機檔案名稱</string>
     <string name="setting_random_filename_desc">重新命名已清理的檔案（檔案名稱可能洩漏資訊）</string>
     <string name="setting_convert_unsupported">轉換不支援的格式</string>
-    <string name="setting_convert_unsupported_desc">Re-encode image formats that can\'t be cleaned in place (such as HEIC) to JPEG. Images only</string>
+    <string name="setting_convert_unsupported_desc">將無法直接清理的圖片格式（如 HEIC）重新編碼為 JPEG 。僅適用於圖片</string>
     <string name="setting_verify">驗證已清理的檔案</string>
     <string name="setting_verify_desc">Re-read every cleaned image and withhold it if any metadata survived. Turning this off is a little faster, but you lose the guarantee</string>
 
@@ -76,10 +76,10 @@
     <string name="error_could_not_read">無法讀取圖片</string>
 
     <!-- Cleaning report -->
-    <string name="verified_clean">Verified clean</string>
+    <string name="verified_clean">已驗證為乾淨</string>
     <string name="verified_clean_desc">Each cleaned file was re-parsed from scratch and contains no metadata. Anything that could not be proven clean was withheld.</string>
     <string name="error_not_provably_clean">Withheld: could not be proven clean</string>
-    <string name="error_not_provably_clean_desc">Something survived cleaning that shouldn\'t have, so this file was deleted rather than shared. Please report it.</string>
+    <string name="error_not_provably_clean_desc">清理後仍有不應保留的內容，因此已刪除此檔案而不會分享。請回報此問題。</string>
     <plurals name="n_files_withheld">
         <item quantity="one">%d file withheld</item>
         <item quantity="other">%d files withheld</item>
@@ -107,16 +107,16 @@
     <string name="finding_trailing_video">A video hidden after the image (%1$s) — a motion photo keeps one, and it carries its own location, timestamp and device name</string>
     <string name="finding_trailing_image">A second image hidden after the first (%1$s) — such as an Ultra HDR gain map, carrying its own copy of the metadata</string>
     <string name="finding_trailing_unknown">%1$s of data appended after the end of the image</string>
-    <string name="finding_thumbnail">An embedded thumbnail (%1$s) — a small but complete copy of the original picture</string>
+    <string name="finding_thumbnail">內嵌縮圖（%1$s）— 原始圖片的小型但完整的副本</string>
     <plurals name="finding_segments">
-        <item quantity="one">%1$d metadata segment removed (%2$s)</item>
-        <item quantity="other">%1$d metadata segments removed (%2$s)</item>
+        <item quantity="one">已移除 %1$d 個中繼資料區段（%2$s）</item>
+        <item quantity="other">已移除 %1$d 個中繼資料區段（%2$s）</item>
     </plurals>
     <plurals name="finding_video_boxes">
         <item quantity="one">%d metadata box cleared inside the video</item>
         <item quantity="other">%d metadata boxes cleared inside the video</item>
     </plurals>
-    <string name="finding_reencoded">Re-encoded as a fresh JPEG — this format stores metadata in a way that cannot be stripped in place, so the picture was rebuilt from decoded pixels</string>
+    <string name="finding_reencoded">已重新編碼為全新的 JPEG — 此格式儲存中繼資料的方式無法直接清除，因此以解碼後的像素重新建構圖片</string>
 
     <!-- Short category labels for template summaries -->
     <string name="sum_location">位置</string>
@@ -144,7 +144,7 @@
     <string name="inspector_no_metadata">未發現中繼資料 — 此檔案已經乾淨。</string>
     <string name="inspector_could_not_read">無法讀取此檔案。</string>
     <string name="inspector_findings_note">除上述項目外， 清理此檔案還會移除：</string>
-    <string name="inspector_redaction_note">Android 會隱藏媒體檔案中的位置資料，避免未獲相片存取權限的應用程式讀取。授予 EXIF Remove 相片和影片存取權限即可查看原始位置資料。</string>
+    <string name="inspector_redaction_note">Android 會對沒有相片存取權限的應用程式隱藏媒體檔案中的位置資料。授予 EXIF Remove 相片和影片存取權限即可查看原始位置資料。</string>
 
     <!-- Onboarding -->
     <string name="tutorial">教學</string>
@@ -152,7 +152,7 @@
     <string name="next">下一步</string>
     <string name="get_started">開始使用</string>
     <string name="onb1_title">Your photos talk</string>
-    <string name="onb1_body">Every photo and video quietly records details about you. Anyone you share it with can read them.</string>
+    <string name="onb1_body">每張相片和影片都會悄悄紀錄你的相關資訊。任何收到檔案的人都能讀取。</string>
     <string name="onb1_where">你當時所在的位置</string>
     <string name="onb1_when">拍攝的時間</string>
     <string name="onb1_what">你擁有的裝置</string>
